@@ -12,9 +12,43 @@ export function PWARegister() {
 
     if (isLocalhost) return;
 
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      // Silent fail: app should still work online without SW.
-    });
+    let refreshed = false;
+
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => {
+        registration.update();
+
+        setInterval(
+          () => {
+            registration.update();
+          },
+          60 * 60 * 1000,
+        );
+
+        const activateIfWaiting = () => {
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: "SKIP_WAITING" });
+          }
+        };
+
+        registration.addEventListener("updatefound", () => {
+          const worker = registration.installing;
+          if (!worker) return;
+          worker.addEventListener("statechange", () => {
+            if (worker.state === "installed") activateIfWaiting();
+          });
+        });
+
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (refreshed) return;
+          refreshed = true;
+          window.location.reload();
+        });
+      })
+      .catch(() => {
+        // Silent fail: app should still work online without SW.
+      });
   }, []);
 
   return null;
