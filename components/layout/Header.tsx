@@ -1,0 +1,60 @@
+"use client";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useUIStore } from "@/store/useUIStore";
+import { useDayStore } from "@/store/useDayStore";
+import { dayLabels } from "@/lib/utils/date";
+
+export function Header() {
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const openModal = useUIStore((s) => s.openModal);
+  const offset = useDayStore((s) => s.offset);
+  const { headerDate } = dayLabels(offset);
+
+  return (
+    <header
+      className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 shadow-md"
+      style={{
+        background: "linear-gradient(135deg,#1b3255 0%,#162844 100%)",
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+      }}
+    >
+      <div className="flex items-center gap-2.5">
+        <div
+          className="w-6 h-6"
+          style={{
+            background: "var(--color-orange)",
+            clipPath: "polygon(50% 0%,100% 50%,50% 100%,0% 50%)",
+          }}
+        />
+        <div>
+          <div className="text-white text-[15px] font-extrabold">
+            Krešimir Fit <span className="text-[10px] opacity-50 font-normal">v1.0</span>
+          </div>
+          <div className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+            {headerDate}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => openModal("goal")}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-xs font-bold border border-white/20 bg-white/10"
+        >
+          <svg width={12} height={12} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <circle cx={12} cy={12} r={10} />
+            <path d="M12 8v4l3 3" />
+          </svg>
+          {user?.goal ?? 1500} kcal
+        </button>
+        <button
+          onClick={logout}
+          className="px-2.5 py-1 rounded-lg text-[11px] border border-white/10 bg-white/10"
+          style={{ color: "rgba(255,255,255,0.5)" }}
+        >
+          Odjava
+        </button>
+      </div>
+    </header>
+  );
+}

@@ -1,0 +1,38 @@
+import type { PieceInfo } from "@/types/app";
+
+// Hardcoded piece-unit map for foods that come from DEFAULT_FOODS without
+// piece_weight_g/piece_name fields (Supabase rows carry their own).
+export const PIECE_UNITS: Record<number, PieceInfo> = {
+  37: { g: 53, label: "1 jaje M (≈53g)" },
+  38: { g: 33, label: "1 bjelanjak (≈33g)" },
+  39: { g: 18, label: "1 žumanjak (≈18g)" },
+  115: { g: 180, label: "1 jabuka (≈180g)" },
+  116: { g: 170, label: "1 kruška (≈170g)" },
+  117: { g: 120, label: "1 banana srednja (≈120g)" },
+  118: { g: 200, label: "1 naranča (≈200g)" },
+  119: { g: 75, label: "1 mandarina (≈75g)" },
+  120: { g: 60, label: "1 limun (≈60g)" },
+  121: { g: 230, label: "1 grejp (≈230g)" },
+  122: { g: 12, label: "1 jagoda (≈12g)" },
+  123: { g: 2, label: "1 borovnica (≈2g)" },
+  129: { g: 150, label: "1 breskva (≈150g)" },
+  130: { g: 140, label: "1 nektarina (≈140g)" },
+  131: { g: 40, label: "1 šljiva (≈40g)" },
+  132: { g: 8, label: "1 trešnja (≈8g)" },
+  133: { g: 75, label: "1 kivi (≈75g)" },
+  91: { g: 80, label: "1 mrkva (≈80g)" },
+  93: { g: 120, label: "1 paradajz (≈120g)" },
+  94: { g: 150, label: "1 paprika crvena (≈150g)" },
+  95: { g: 150, label: "1 paprika zelena (≈150g)" },
+  96: { g: 150, label: "1 paprika žuta (≈150g)" },
+  92: { g: 200, label: "1 krastavac (≈200g)" },
+  98: { g: 120, label: "1 luk (≈120g)" },
+  99: { g: 5, label: "1 češanj češnjaka (≈5g)" },
+  100: { g: 200, label: "1 tikvica (≈200g)" },
+  101: { g: 300, label: "1 patlidžan (≈300g)" },
+  109: { g: 15, label: "1 šampinjon (≈15g)" },
+  136: { g: 160, label: "1 avokado (≈160g)" },
+  140: { g: 1.2, label: "1 badem (≈1.2g)" },
+  141: { g: 5, label: "1 polovica oraha (≈5g)" },
+  142: { g: 1.5, label: "1 lješnjak (≈1.5g)" },
+};

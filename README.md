@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Krešimir Fit Tracker — Next.js
 
-## Getting Started
+Next.js 16 + React 19 + Tailwind v4 + TypeScript port of the legacy single-file PWA.
 
-First, run the development server:
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local   # then fill values
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Env vars
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Var | Purpose |
+|-----|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable anon key |
+| `NEXT_PUBLIC_ADMIN_PASSWORD` | client-side admin gate |
+| `NEXT_PUBLIC_SYNC_SHEET_ID` | Google Sheet ID for foods sync |
+| `NEXT_PUBLIC_SYNC_SHEET_GID` | gid of the sheet tab |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Folder structure
 
-## Learn More
+```
+app/                      # Next.js App Router routes
+  layout.tsx              # root shell (Toast, Loading)
+  page.tsx                # bootstrap → /login or /dashboard
+  login/                  # public login screen
+  admin/                  # admin (codes + sheet sync)
+  (main)/                 # auth-gated app shell w/ header + bottom nav
+    layout.tsx
+    dashboard/
+    search/
+    favorites/
 
-To learn more about Next.js, take a look at the following resources:
+components/
+  ui/                     # Toast, Loading, Modal, Button, Input
+  layout/                 # Header, BottomNav
+  auth/                   # LoginForm
+  dashboard/              # CalorieRing, DayNav, MacroPills, MealCard, MealsList, FoodLogItem
+  search/                 # SearchBar, FoodResultItem, HistoryList, BarcodeScanner
+  favorites/              # FavTabs, FavCard
+  modals/                 # AddFoodModal, EditFoodModal, GoalModal, SaveFavModal, AddFavModal, SyncPreviewModal
+  admin/                  # CodeForm, CodeList, SyncSection
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+hooks/                    # useFoods, useFoodLogs, useFavorites, useHistory
+store/                    # zustand stores: useAuthStore, useUIStore, useDayStore
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+lib/
+  supabase/               # typed client
+  api/                    # codes, foodLogs, favorites, foods, openFoodFacts, sheetSync
+  utils/                  # date, normalize, csv, macros
+  constants/              # meals, pieces, defaultFoods (fallback)
 
-## Deploy on Vercel
+types/                    # database (Supabase row types), app (UI types)
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Supabase types
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`types/database.ts` is hand-written. Once the Supabase CLI is wired in:
+
+```bash
+npx supabase gen types typescript --project-id <id> > types/database.ts
+```
+
+## Notes
+
+- Auth is the legacy "access code" pattern (table `codes`), persisted to `localStorage` (`kf_saved_code`).
+- History (last 20 foods per code) and food cache (2 h TTL) live in `localStorage`.
+- Barcode scan uses native `BarcodeDetector` → Open Food Facts. Chrome-on-Android only.
+- Sheet sync pulls a public CSV export of a Google Sheet, diffs against `foods.name`, inserts new rows.
+- Admin password is client-side gate only — Supabase RLS must be the real boundary.
