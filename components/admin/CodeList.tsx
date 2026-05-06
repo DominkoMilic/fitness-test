@@ -5,6 +5,9 @@ import { listCodes, deleteCode as apiDelete } from "@/lib/api/codes";
 import type { AccessCodeRow } from "@/types/database";
 import { useUIStore } from "@/store/useUIStore";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
+import { todayISO } from "@/lib/utils/date";
+
+type UserFilter = "active" | "deactivated";
 
 function formatExpireDateHR(value: string) {
   const [year, month, day] = value.split("-");
@@ -15,10 +18,16 @@ function formatExpireDateHR(value: string) {
 export function CodeList({ refreshKey }: { refreshKey: number }) {
   const router = useRouter();
   const [codes, setCodes] = useState<AccessCodeRow[] | null>(null);
+  const [filter, setFilter] = useState<UserFilter>("active");
   const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(
     null,
   );
   const showToast = useUIStore((s) => s.showToast);
+  const today = todayISO();
+
+  const activeCodes = (codes ?? []).filter((c) => c.exp >= today);
+  const deactivatedCodes = (codes ?? []).filter((c) => c.exp < today);
+  const filteredCodes = filter === "active" ? activeCodes : deactivatedCodes;
 
   const refresh = useCallback(async () => {
     setCodes(await listCodes());
@@ -43,7 +52,35 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
           className="text-sm font-extrabold mb-4"
           style={{ color: "var(--color-navy)" }}
         >
-          Aktivni kodovi
+          Korisnici
+        </div>
+        <div className="flex gap-1.5 mb-3 overflow-x-auto">
+          <button
+            onClick={() => setFilter("active")}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border-[1.5px] ${
+              filter === "active"
+                ? "border-navy bg-navy text-white"
+                : "border-border bg-white"
+            }`}
+            style={{
+              color: filter === "active" ? "#fff" : "var(--color-muted)",
+            }}
+          >
+            Aktivni ({activeCodes.length})
+          </button>
+          <button
+            onClick={() => setFilter("deactivated")}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border-[1.5px] ${
+              filter === "deactivated"
+                ? "border-navy bg-navy text-white"
+                : "border-border bg-white"
+            }`}
+            style={{
+              color: filter === "deactivated" ? "#fff" : "var(--color-muted)",
+            }}
+          >
+            Deaktivirani ({deactivatedCodes.length})
+          </button>
         </div>
         {codes === null && (
           <div
@@ -61,7 +98,17 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
             Nema kodova.
           </div>
         )}
-        {codes?.map((c) => (
+        {codes !== null && filteredCodes.length === 0 && (
+          <div
+            className="text-[13px] py-2"
+            style={{ color: "var(--color-muted)" }}
+          >
+            {filter === "active"
+              ? "Nema aktivnih korisnika."
+              : "Nema deaktiviranih korisnika."}
+          </div>
+        )}
+        {filteredCodes.map((c) => (
           <div
             key={c.code}
             onClick={() =>
