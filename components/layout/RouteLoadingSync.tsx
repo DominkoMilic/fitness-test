@@ -1,17 +1,16 @@
 "use client";
 import { useEffect } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useUIStore } from "@/store/useUIStore";
 
 export function RouteLoadingSync() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const setLoading = useUIStore((s) => s.setLoading);
 
   useEffect(() => {
     const done = setTimeout(() => setLoading(false), 140);
     return () => clearTimeout(done);
-  }, [pathname, searchParams, setLoading]);
+  }, [pathname, setLoading]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -34,6 +33,10 @@ export function RouteLoadingSync() {
       if (current === next) return;
 
       setLoading(true);
+
+      // Failsafe: if route commit signal is delayed (e.g. query-only updates),
+      // ensure loader never remains visible indefinitely.
+      setTimeout(() => setLoading(false), 1200);
     };
 
     document.addEventListener("click", onClick, true);
