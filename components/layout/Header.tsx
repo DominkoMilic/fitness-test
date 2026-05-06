@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useDayStore } from "@/store/useDayStore";
@@ -29,13 +30,15 @@ export function Header() {
         }}
       >
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-6 h-6"
-            style={{
-              background: "var(--color-orange)",
-              clipPath: "polygon(50% 0%,100% 50%,50% 100%,0% 50%)",
-            }}
-          />
+          <div className="w-10 h-10 rounded-md overflow-hidden bg-white/10 flex items-center justify-center">
+            <Image
+              src="/icon-512.png"
+              alt="Krešimir Fit"
+              width={42}
+              height={42}
+              className="object-contain"
+            />
+          </div>
           <div>
             <div className="text-white text-[15px] font-extrabold">
               Krešimir Fit{" "}
