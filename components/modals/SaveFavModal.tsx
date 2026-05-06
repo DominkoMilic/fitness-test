@@ -53,7 +53,7 @@ export function SaveFavModal({ onSaved }: { onSaved?: () => void }) {
       return;
     }
     await createFavorite({
-      code: user.code,
+      user_id: user.id,
       name: name.trim(),
       meal,
       items,

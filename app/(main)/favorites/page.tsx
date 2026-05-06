@@ -11,7 +11,7 @@ import type { MealFilter } from "@/types/app";
 
 export default function FavoritesPage() {
   const user = useAuthStore((s) => s.user);
-  const { favs, refresh, remove } = useFavorites(user?.code);
+  const { favs, refresh, remove } = useFavorites(user?.id);
   const openModal = useUIStore((s) => s.openModal);
   const showToast = useUIStore((s) => s.showToast);
   const [filter, setFilter] = useState<MealFilter>("sve");

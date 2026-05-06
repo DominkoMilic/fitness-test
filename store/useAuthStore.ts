@@ -1,7 +1,10 @@
 "use client";
 import { create } from "zustand";
 import type { AccessCodeRow } from "@/types/database";
-import { loginWithCode as apiLogin, updateGoal as apiUpdateGoal } from "@/lib/api/codes";
+import {
+  loginWithCode as apiLogin,
+  updateGoal as apiUpdateGoal,
+} from "@/lib/api/codes";
 
 const SAVED_KEY = "kf_saved_code";
 
@@ -41,6 +44,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const u = get().user;
     if (!u) return;
     set({ user: { ...u, goal } });
-    await apiUpdateGoal(u.code, goal);
+    await apiUpdateGoal(u.id, goal);
   },
 }));

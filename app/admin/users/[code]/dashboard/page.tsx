@@ -40,7 +40,7 @@ export default function AdminUserDashboardPage() {
   }, [code, router]);
 
   const date = useMemo(() => dateForOffset(offset), [offset]);
-  const { logs } = useFoodLogs(user?.code, date);
+  const { logs } = useFoodLogs(user?.id, date);
   const totals = sumLogs(logs);
   const goal = user?.goal ?? 1500;
 

@@ -37,13 +37,15 @@ export type Database = {
 };
 
 export type AccessCodeRow = {
+  id: string;
   code: string;
   name: string;
   exp: string; // YYYY-MM-DD
   goal: number;
-  created_at: string;
+  created_at: string | null;
 };
-export type AccessCodeInsert = Omit<AccessCodeRow, "created_at"> & {
+export type AccessCodeInsert = Omit<AccessCodeRow, "id" | "created_at"> & {
+  id?: string;
   created_at?: string;
 };
 
@@ -69,7 +71,7 @@ export type FoodInsert = Omit<FoodRow, "id" | "created_at"> & {
 
 export type FoodLogRow = {
   id: string;
-  code: string;
+  user_id: string;
   date: string;
   meal: MealKey;
   food_name: string;
@@ -98,7 +100,7 @@ export type FavoriteItem = {
 
 export type FavoriteRow = {
   id: number;
-  code: string;
+  user_id: string;
   name: string;
   meal: MealKey;
   items: FavoriteItem[];

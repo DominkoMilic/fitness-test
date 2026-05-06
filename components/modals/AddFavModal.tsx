@@ -35,7 +35,7 @@ export function AddFavModal({ onAdded }: { onAdded?: () => void }) {
     const ds = dateForOffset(offset);
     await insertLogs(
       fav.items.map((it) => ({
-        code: user.code,
+        user_id: user.id,
         date: ds,
         meal: target,
         food_name: it.name,

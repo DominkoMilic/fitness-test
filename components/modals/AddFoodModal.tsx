@@ -54,7 +54,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
     closeModal();
     showToast(`Dodano: ${food.name}`);
     await insertLog({
-      code: user.code,
+      user_id: user.id,
       date: dateForOffset(offset),
       meal,
       food_name: food.name,

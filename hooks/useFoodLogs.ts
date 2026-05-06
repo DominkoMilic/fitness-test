@@ -1,24 +1,32 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { listLogs, deleteLog as apiDelete, insertLog, updateLog as apiUpdate, insertLogs } from "@/lib/api/foodLogs";
+import {
+  listLogs,
+  deleteLog as apiDelete,
+  insertLog,
+  updateLog as apiUpdate,
+  insertLogs,
+} from "@/lib/api/foodLogs";
 import type { FoodLogInsert, FoodLogRow } from "@/types/database";
 
-export function useFoodLogs(code: string | undefined, date: string) {
+export function useFoodLogs(userId: string | undefined, date: string) {
   const [logs, setLogs] = useState<FoodLogRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!code) return;
+    if (!userId) return;
     setLoading(true);
     try {
-      const rows = await listLogs(code, date);
+      const rows = await listLogs(userId, date);
       setLogs(rows);
     } finally {
       setLoading(false);
     }
-  }, [code, date]);
+  }, [userId, date]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const add = async (entry: FoodLogInsert) => {
     const created = await insertLog(entry);

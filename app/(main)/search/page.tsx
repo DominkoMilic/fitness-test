@@ -30,7 +30,9 @@ export default function SearchPage() {
   const filtered = useMemo(() => {
     const norm = normalizeForSearch(q.trim());
     if (!norm) return [];
-    return foods.filter((f) => normalizeForSearch(f.name).includes(norm)).slice(0, 25);
+    return foods
+      .filter((f) => normalizeForSearch(f.name).includes(norm))
+      .slice(0, 25);
   }, [q, foods]);
 
   const onPick = (food: FoodEntry) => {
@@ -46,13 +48,17 @@ export default function SearchPage() {
   // Trigger refresh of dashboard after add — invalidate logs for current day.
   const offset = useDayStore((s) => s.offset);
   const onAdded = () => {
-    if (user?.code) listLogs(user.code, dateForOffset(offset));
+    if (user?.id) listLogs(user.id, dateForOffset(offset));
   };
 
   return (
     <>
       <SearchBar value={q} onChange={setQ} onScan={() => setScan((v) => !v)} />
-      <BarcodeScanner open={scan} onClose={() => setScan(false)} onResult={onScanResult} />
+      <BarcodeScanner
+        open={scan}
+        onClose={() => setScan(false)}
+        onResult={onScanResult}
+      />
       {q ? (
         filtered.length ? (
           <div>
@@ -61,15 +67,23 @@ export default function SearchPage() {
             ))}
           </div>
         ) : (
-          <div className="p-6 text-center text-sm" style={{ color: "var(--color-muted)" }}>
+          <div
+            className="p-6 text-center text-sm"
+            style={{ color: "var(--color-muted)" }}
+          >
             Namirnica nije pronađena ({foods.length}).
           </div>
         )
       ) : (
-        <HistoryList items={history} onAdd={(id) => {
-          const f = foods.find((x) => Number(x.id) === id) || history.find((x) => Number(x.id) === id);
-          if (f) onPick(f as FoodEntry);
-        }} />
+        <HistoryList
+          items={history}
+          onAdd={(id) => {
+            const f =
+              foods.find((x) => Number(x.id) === id) ||
+              history.find((x) => Number(x.id) === id);
+            if (f) onPick(f as FoodEntry);
+          }}
+        />
       )}
       <AddFoodModal onAdded={onAdded} />
     </>

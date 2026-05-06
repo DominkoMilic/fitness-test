@@ -36,7 +36,7 @@ export default function AdminUserFavoritesPage() {
     };
   }, [code, router]);
 
-  const { favs } = useFavorites(user?.code);
+  const { favs } = useFavorites(user?.id);
   const list = filter === "sve" ? favs : favs.filter((f) => f.meal === filter);
 
   return (

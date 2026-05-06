@@ -24,7 +24,7 @@ export default function DashboardPage() {
   const showToast = useUIStore((s) => s.showToast);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  const { logs, refresh, remove } = useFoodLogs(user?.code, date);
+  const { logs, refresh, remove } = useFoodLogs(user?.id, date);
   const totals = sumLogs(logs);
   const goal = user?.goal ?? 1500;
   const pendingLog = logs.find((log) => log.id === pendingDeleteId) ?? null;

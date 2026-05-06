@@ -1,23 +1,29 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { listFavorites, createFavorite, deleteFavorite } from "@/lib/api/favorites";
+import {
+  listFavorites,
+  createFavorite,
+  deleteFavorite,
+} from "@/lib/api/favorites";
 import type { FavoriteInsert, FavoriteRow } from "@/types/database";
 
-export function useFavorites(code: string | undefined) {
+export function useFavorites(userId: string | undefined) {
   const [favs, setFavs] = useState<FavoriteRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!code) return;
+    if (!userId) return;
     setLoading(true);
     try {
-      setFavs(await listFavorites(code));
+      setFavs(await listFavorites(userId));
     } finally {
       setLoading(false);
     }
-  }, [code]);
+  }, [userId]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const add = async (input: FavoriteInsert) => {
     const created = await createFavorite(input);
