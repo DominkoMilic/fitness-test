@@ -46,26 +46,58 @@ export function CodeForm({ onCreated }: { onCreated: () => void }) {
       >
         Novi pristupni kod
       </div>
+      <label
+        htmlFor="admin-code"
+        className="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
+        style={{ color: "var(--color-muted)" }}
+      >
+        Pristupni kod
+      </label>
       <Input
+        id="admin-code"
         value={code}
         onChange={(e) => setCode(e.target.value.toUpperCase())}
         placeholder="Kod (npr. ANA-2024)"
         maxLength={12}
-        className="mb-2.5"
+        className="mb-3"
       />
+      <label
+        htmlFor="admin-name"
+        className="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
+        style={{ color: "var(--color-muted)" }}
+      >
+        Ime klijentice
+      </label>
       <Input
+        id="admin-name"
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Ime klijentice"
-        className="mb-2.5"
+        className="mb-3"
       />
+      <label
+        htmlFor="admin-exp"
+        className="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
+        style={{ color: "var(--color-muted)" }}
+      >
+        Vrijedi do
+      </label>
       <Input
+        id="admin-exp"
         type="date"
         value={exp}
         onChange={(e) => setExp(e.target.value)}
-        className="mb-2.5"
+        className="mb-3"
       />
+      <label
+        htmlFor="admin-goal"
+        className="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
+        style={{ color: "var(--color-muted)" }}
+      >
+        Dnevni kalorijski cilj (kcal)
+      </label>
       <Input
+        id="admin-goal"
         type="number"
         inputMode="numeric"
         value={goal}
