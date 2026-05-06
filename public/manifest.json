@@ -1,12 +1,18 @@
 {
+  "id": "/",
   "name": "Krešimir Fit Tracker",
   "short_name": "KF Tracker",
   "description": "Kalorijski tracker za klijente Krešimir Fit programa",
-  "start_url": "/Tracker/app.html",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "hr",
+  "dir": "ltr",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#1b3255",
   "theme_color": "#1b3255",
   "orientation": "portrait",
+  "categories": ["health", "fitness", "lifestyle"],
   "icons": [
     {
       "src": "icon-192.png",
