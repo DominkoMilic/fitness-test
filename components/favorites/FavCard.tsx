@@ -4,8 +4,8 @@ import type { FavoriteRow } from "@/types/database";
 
 type Props = {
   fav: FavoriteRow;
-  onAdd: () => void;
-  onDelete: () => void;
+  onAdd?: () => void;
+  onDelete?: () => void;
 };
 
 export function FavCard({ fav, onAdd, onDelete }: Props) {
@@ -32,21 +32,27 @@ export function FavCard({ fav, onAdd, onDelete }: Props) {
             {Math.round(totalP)}g · {fav.items.length} namirnica
           </div>
         </div>
-        <div className="flex gap-1.5 items-center">
-          <button
-            onClick={onAdd}
-            className="bg-orange text-white rounded-lg px-3 py-1.5 text-xs font-bold"
-          >
-            + Dodaj
-          </button>
-          <button
-            onClick={onDelete}
-            aria-label="Obriši"
-            className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center"
-          >
-            ×
-          </button>
-        </div>
+        {(onAdd || onDelete) && (
+          <div className="flex gap-1.5 items-center">
+            {onAdd && (
+              <button
+                onClick={onAdd}
+                className="bg-orange text-white rounded-lg px-3 py-1.5 text-xs font-bold"
+              >
+                + Dodaj
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                aria-label="Obriši"
+                className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
       </div>
       {fav.items.map((it, idx) => (
         <div

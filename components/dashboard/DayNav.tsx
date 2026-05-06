@@ -2,9 +2,16 @@
 import { useDayStore } from "@/store/useDayStore";
 import { dayLabels } from "@/lib/utils/date";
 
-export function DayNav() {
-  const offset = useDayStore((s) => s.offset);
-  const changeDay = useDayStore((s) => s.changeDay);
+type Props = {
+  offset?: number;
+  onChangeDay?: (dir: number) => void;
+};
+
+export function DayNav({ offset: controlledOffset, onChangeDay }: Props) {
+  const storeOffset = useDayStore((s) => s.offset);
+  const storeChangeDay = useDayStore((s) => s.changeDay);
+  const offset = controlledOffset ?? storeOffset;
+  const changeDay = onChangeDay ?? storeChangeDay;
   const { label, formatted, isToday } = dayLabels(offset);
 
   return (

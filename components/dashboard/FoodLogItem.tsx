@@ -3,8 +3,8 @@ import type { FoodLogRow } from "@/types/database";
 
 type Props = {
   item: FoodLogRow;
-  onClick: () => void;
-  onDelete: () => void;
+  onClick?: () => void;
+  onDelete?: () => void;
 };
 
 export function FoodLogItem({ item, onClick, onDelete }: Props) {
@@ -14,7 +14,7 @@ export function FoodLogItem({ item, onClick, onDelete }: Props) {
   return (
     <div
       onClick={onClick}
-      className="kf-row px-3.5 py-2.5 border-b border-border cursor-pointer last:border-b-0"
+      className={`kf-row px-3.5 py-2.5 border-b border-border last:border-b-0 ${onClick ? "cursor-pointer" : "cursor-default"}`}
     >
       <div className="flex items-start justify-between">
         <div>
@@ -33,16 +33,18 @@ export function FoodLogItem({ item, onClick, onDelete }: Props) {
           >
             {Math.round(item.kcal)} kcal
           </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center"
-            aria-label="Obriši"
-          >
-            ×
-          </button>
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center"
+              aria-label="Obriši"
+            >
+              ×
+            </button>
+          )}
         </div>
       </div>
       <div className="flex gap-2.5 mt-1">

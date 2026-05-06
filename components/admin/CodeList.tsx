@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { listCodes, deleteCode as apiDelete } from "@/lib/api/codes";
 import type { AccessCodeRow } from "@/types/database";
 import { useUIStore } from "@/store/useUIStore";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 
 export function CodeList({ refreshKey }: { refreshKey: number }) {
+  const router = useRouter();
   const [codes, setCodes] = useState<AccessCodeRow[] | null>(null);
   const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(
     null,
@@ -56,7 +58,12 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
         {codes?.map((c) => (
           <div
             key={c.code}
-            className="kf-row flex items-center justify-between py-2.5 px-2 -mx-2 rounded-lg border-b border-border last:border-b-0"
+            onClick={() =>
+              router.push(
+                `/admin/users/${encodeURIComponent(c.code)}/dashboard`,
+              )
+            }
+            className="kf-row flex items-center justify-between py-2.5 px-2 -mx-2 rounded-lg border-b border-border last:border-b-0 cursor-pointer"
           >
             <div>
               <span
@@ -73,7 +80,10 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
               </div>
             </div>
             <button
-              onClick={() => setPendingDeleteCode(c.code)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setPendingDeleteCode(c.code);
+              }}
               aria-label="Obriši"
               className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center"
             >

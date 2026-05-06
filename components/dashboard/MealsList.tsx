@@ -5,11 +5,12 @@ import { MealCard } from "./MealCard";
 
 type Props = {
   logs: FoodLogRow[];
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  readOnly?: boolean;
 };
 
-export function MealsList({ logs, onEdit, onDelete }: Props) {
+export function MealsList({ logs, onEdit, onDelete, readOnly = false }: Props) {
   return (
     <div className="pt-2">
       {MEAL_KEYS.map((meal, idx) => (
@@ -20,6 +21,7 @@ export function MealsList({ logs, onEdit, onDelete }: Props) {
           onEdit={onEdit}
           onDelete={onDelete}
           className={idx === 0 ? "mb-4" : ""}
+          readOnly={readOnly}
         />
       ))}
     </div>

@@ -8,9 +8,10 @@ import { useUIStore } from "@/store/useUIStore";
 type Props = {
   meal: MealKey;
   items: FoodLogRow[];
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
   className?: string;
+  readOnly?: boolean;
 };
 
 export function MealCard({
@@ -19,6 +20,7 @@ export function MealCard({
   onEdit,
   onDelete,
   className = "",
+  readOnly = false,
 }: Props) {
   const router = useRouter();
   const openModal = useUIStore((s) => s.openModal);
@@ -46,28 +48,38 @@ export function MealCard({
         <FoodLogItem
           key={it.id}
           item={it}
-          onClick={() => onEdit(it.id)}
-          onDelete={() => onDelete(it.id)}
+          onClick={onEdit ? () => onEdit(it.id) : undefined}
+          onDelete={onDelete ? () => onDelete(it.id) : undefined}
         />
       ))}
-      <button
-        onClick={() => router.push(`/search?meal=${meal}`)}
-        className="flex items-center gap-2 px-3.5 py-2.5 w-full text-[13px] font-semibold"
-        style={{ color: "var(--color-orange)" }}
-      >
-        <svg
-          width={15}
-          height={15}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-          viewBox="0 0 24 24"
+      {!readOnly && (
+        <button
+          onClick={() => router.push(`/search?meal=${meal}`)}
+          className="flex items-center gap-2 px-3.5 py-2.5 w-full text-[13px] font-semibold"
+          style={{ color: "var(--color-orange)" }}
         >
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        Dodaj namirnicu
-      </button>
-      {items.length > 0 && (
+          <svg
+            width={15}
+            height={15}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Dodaj namirnicu
+        </button>
+      )}
+      {readOnly && items.length === 0 && (
+        <div
+          className="px-3.5 py-3 text-[12px]"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Nema unosa za ovaj obrok.
+        </div>
+      )}
+      {!readOnly && items.length > 0 && (
         <button
           onClick={() => openModal("saveFav", { meal, items })}
           className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-t border-border"
