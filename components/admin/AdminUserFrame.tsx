@@ -1,7 +1,10 @@
 "use client";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { AccessCodeRow } from "@/types/database";
+import { Modal } from "@/components/ui/Modal";
+import { updateCodeExpiry } from "@/lib/api/codes";
+import { useUIStore } from "@/store/useUIStore";
 
 type Props = {
   code: string;
@@ -24,6 +27,37 @@ export function AdminUserFrame({
   activeTab,
   children,
 }: Props) {
+  const showToast = useUIStore((s) => s.showToast);
+  const [editOpen, setEditOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [displayExp, setDisplayExp] = useState(user?.exp ?? "");
+  const [expDraft, setExpDraft] = useState(user?.exp ?? "");
+
+  useEffect(() => {
+    setDisplayExp(user?.exp ?? "");
+    setExpDraft(user?.exp ?? "");
+  }, [user?.id, user?.exp]);
+
+  const onOpenEdit = () => {
+    setExpDraft(displayExp || user?.exp || "");
+    setEditOpen(true);
+  };
+
+  const onSaveExp = async () => {
+    if (!user || !expDraft) return;
+    setSaving(true);
+    try {
+      await updateCodeExpiry(user.id, expDraft);
+      setDisplayExp(expDraft);
+      setEditOpen(false);
+      showToast("Datum isteka je ažuriran");
+    } catch {
+      showToast("Greška pri spremanju datuma isteka");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="px-5 py-5">
@@ -94,8 +128,15 @@ export function AdminUserFrame({
           </div>
           <div className="text-sm mt-1" style={{ color: "var(--color-muted)" }}>
             Kod: {user.code} · cilj: {user.goal} kcal · vrijedi do{" "}
-            {formatExpireDateHR(user.exp)}
+            {formatExpireDateHR(displayExp || user.exp)}
           </div>
+          <button
+            onClick={onOpenEdit}
+            className="mt-3 inline-flex px-3 py-1.5 rounded-full text-[11px] font-bold border border-orange/30 bg-orange/10"
+            style={{ color: "var(--color-orange)" }}
+          >
+            Produži / skrati datum isteka
+          </button>
         </div>
       </div>
 
@@ -124,6 +165,55 @@ export function AdminUserFrame({
       </div>
 
       {children}
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)}>
+        <div
+          className="text-base font-extrabold mb-1"
+          style={{ color: "var(--color-navy)" }}
+        >
+          Uredi datum isteka koda
+        </div>
+        <div
+          className="text-[13px] mb-4"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Korisnik: {user.name} ({user.code})
+        </div>
+        <div
+          className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Novi datum isteka
+        </div>
+        <input
+          type="date"
+          value={expDraft}
+          onChange={(e) => setExpDraft(e.target.value)}
+          className="w-full py-3 px-3.5 rounded-xl text-base font-semibold outline-none border-[1.5px] border-border focus:border-orange text-navy mb-4"
+        />
+        <div
+          className="text-[12px] mb-4"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Trenutno: {formatExpireDateHR(displayExp || user.exp)}
+        </div>
+        <div className="flex gap-2.5">
+          <button
+            onClick={() => setEditOpen(false)}
+            className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-bg text-[15px] font-semibold"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Odustani
+          </button>
+          <button
+            onClick={onSaveExp}
+            disabled={saving || !expDraft}
+            className="flex-2 py-3.5 rounded-xl bg-linear-to-br from-orange to-orange-dark text-white text-[15px] font-bold"
+          >
+            {saving ? "Spremam..." : "Spremi datum"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

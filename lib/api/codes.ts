@@ -53,3 +53,7 @@ export async function deleteCode(code: string) {
 export async function updateGoal(userId: string, goal: number) {
   await supabase.from("codes").update({ goal }).eq("id", userId);
 }
+
+export async function updateCodeExpiry(userId: string, exp: string) {
+  await supabase.from("codes").update({ exp }).eq("id", userId);
+}
