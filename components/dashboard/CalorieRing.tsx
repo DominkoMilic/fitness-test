@@ -20,15 +20,23 @@ export function CalorieRing({ eaten, goal }: Props) {
 
   const remaining = Math.max(0, Math.round(goal - eaten));
   const over = Math.max(0, Math.round(eaten - goal));
+  const noIntakeYet = Math.round(eaten) === 0;
 
-  const note =
-    ratio > 1
+  const note = noIntakeYet
+    ? "Unesite današnje obroke kako biste pratili svoj napredak."
+    : ratio > 1
       ? `Prešli ste dnevni cilj za ${over} kcal.`
       : ratio >= 0.9
         ? `Pažnja: ostalo je još ${remaining} kcal do cilja.`
         : `Super tempo! Danas vam je preostalo ${remaining} kcal.`;
 
-  const noteTone = ratio > 1 ? "#ffd6bf" : ratio >= 0.9 ? "#ffe8a3" : "#c7f0d6";
+  const noteTone = noIntakeYet
+    ? "#d9e8ff"
+    : ratio > 1
+      ? "#ffd6bf"
+      : ratio >= 0.9
+        ? "#ffe8a3"
+        : "#c7f0d6";
 
   return (
     <div className="mx-auto mb-5 flex flex-col items-center">
