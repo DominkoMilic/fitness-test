@@ -1,5 +1,4 @@
 "use client";
-import { useEffect } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useDayStore } from "@/store/useDayStore";
 import { dateForOffset } from "@/lib/utils/date";
@@ -22,14 +21,9 @@ export default function DashboardPage() {
   const setLoading = useUIStore((s) => s.setLoading);
   const showToast = useUIStore((s) => s.showToast);
 
-  const { logs, loading, refresh, remove } = useFoodLogs(user?.code, date);
+  const { logs, refresh, remove } = useFoodLogs(user?.code, date);
   const totals = sumLogs(logs);
   const goal = user?.goal ?? 1500;
-
-  useEffect(() => {
-    setLoading(loading);
-    return () => setLoading(false);
-  }, [loading, setLoading]);
 
   const onEdit = async (id: string) => {
     setLoading(true);
