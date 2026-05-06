@@ -10,15 +10,24 @@ type Props = {
   items: FoodLogRow[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  className?: string;
 };
 
-export function MealCard({ meal, items, onEdit, onDelete }: Props) {
+export function MealCard({
+  meal,
+  items,
+  onEdit,
+  onDelete,
+  className = "",
+}: Props) {
   const router = useRouter();
   const openModal = useUIStore((s) => s.openModal);
   const totalKcal = items.reduce((s, i) => s + Number(i.kcal), 0);
 
   return (
-    <div className="kf-card mx-3 mb-3 bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div
+      className={`kf-card mx-3 mb-3 bg-white rounded-2xl shadow-sm overflow-hidden ${className}`}
+    >
       <div className="flex items-center justify-between px-3.5 py-3 border-b border-border">
         <span
           className="text-sm font-bold"

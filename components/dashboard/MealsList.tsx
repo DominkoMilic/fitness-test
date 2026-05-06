@@ -11,14 +11,15 @@ type Props = {
 
 export function MealsList({ logs, onEdit, onDelete }: Props) {
   return (
-    <div>
-      {MEAL_KEYS.map((meal) => (
+    <div className="pt-2">
+      {MEAL_KEYS.map((meal, idx) => (
         <MealCard
           key={meal}
           meal={meal}
           items={logs.filter((l) => l.meal === meal)}
           onEdit={onEdit}
           onDelete={onDelete}
+          className={idx === 0 ? "mb-4" : ""}
         />
       ))}
     </div>
