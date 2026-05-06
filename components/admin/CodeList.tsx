@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { listCodes, deleteCode as apiDelete } from "@/lib/api/codes";
 import type { AccessCodeRow } from "@/types/database";
@@ -15,10 +15,37 @@ function formatExpireDateHR(value: string) {
   return `${Number(day)}.${Number(month)}.${year}.`;
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightMatch(text: string, query: string): ReactNode {
+  const q = query.trim();
+  if (!q) return text;
+
+  const rx = new RegExp(`(${escapeRegExp(q)})`, "ig");
+  const parts = text.split(rx);
+
+  return parts.map((part, idx) =>
+    part.toLowerCase() === q.toLowerCase() ? (
+      <mark
+        key={`${part}-${idx}`}
+        className="px-0.5 rounded bg-orange/20"
+        style={{ color: "var(--color-navy)" }}
+      >
+        {part}
+      </mark>
+    ) : (
+      <span key={`${part}-${idx}`}>{part}</span>
+    ),
+  );
+}
+
 export function CodeList({ refreshKey }: { refreshKey: number }) {
   const router = useRouter();
   const [codes, setCodes] = useState<AccessCodeRow[] | null>(null);
   const [filter, setFilter] = useState<UserFilter>("active");
+  const [query, setQuery] = useState("");
   const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(
     null,
   );
@@ -28,6 +55,10 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
   const activeCodes = (codes ?? []).filter((c) => c.exp >= today);
   const deactivatedCodes = (codes ?? []).filter((c) => c.exp < today);
   const filteredCodes = filter === "active" ? activeCodes : deactivatedCodes;
+  const q = query.trim().toLowerCase();
+  const visibleCodes = !q
+    ? filteredCodes
+    : filteredCodes.filter((c) => c.code.toLowerCase().includes(q));
 
   const refresh = useCallback(async () => {
     setCodes(await listCodes());
@@ -82,6 +113,14 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
             Deaktivirani ({deactivatedCodes.length})
           </button>
         </div>
+        <div className="mb-3">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value.toUpperCase())}
+            placeholder="Pretraži korisnike po kodu"
+            className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold outline-none border-[1.5px] border-border focus:border-orange text-navy"
+          />
+        </div>
         {codes === null && (
           <div
             className="text-[13px] py-2"
@@ -108,7 +147,17 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
               : "Nema deaktiviranih korisnika."}
           </div>
         )}
-        {filteredCodes.map((c) => (
+        {codes !== null &&
+          filteredCodes.length > 0 &&
+          visibleCodes.length === 0 && (
+            <div
+              className="text-[13px] py-2"
+              style={{ color: "var(--color-muted)" }}
+            >
+              Nema rezultata za "{query}".
+            </div>
+          )}
+        {visibleCodes.map((c) => (
           <div
             key={c.code}
             onClick={() =>
@@ -123,7 +172,7 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
                 className="bg-indigo-50 rounded px-2 py-1 font-extrabold font-mono text-[13px]"
                 style={{ color: "var(--color-navy)" }}
               >
-                {c.code}
+                {highlightMatch(c.code, query)}
               </span>
               <div
                 className="text-[11px] mt-1"
