@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useDayStore } from "@/store/useDayStore";
 import { dateForOffset } from "@/lib/utils/date";
@@ -11,6 +12,7 @@ import { MealsList } from "@/components/dashboard/MealsList";
 import { useUIStore } from "@/store/useUIStore";
 import { EditFoodModal } from "@/components/modals/EditFoodModal";
 import { SaveFavModal } from "@/components/modals/SaveFavModal";
+import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { getLog } from "@/lib/api/foodLogs";
 
 export default function DashboardPage() {
@@ -20,10 +22,12 @@ export default function DashboardPage() {
   const openModal = useUIStore((s) => s.openModal);
   const setLoading = useUIStore((s) => s.setLoading);
   const showToast = useUIStore((s) => s.showToast);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { logs, refresh, remove } = useFoodLogs(user?.code, date);
   const totals = sumLogs(logs);
   const goal = user?.goal ?? 1500;
+  const pendingLog = logs.find((log) => log.id === pendingDeleteId) ?? null;
 
   const onEdit = async (id: string) => {
     setLoading(true);
@@ -34,6 +38,13 @@ export default function DashboardPage() {
       return;
     }
     openModal("editFood", { log });
+  };
+
+  const onDelete = async () => {
+    if (!pendingDeleteId) return;
+    await remove(pendingDeleteId);
+    setPendingDeleteId(null);
+    showToast("Namirnica obrisana");
   };
 
   return (
@@ -50,10 +61,33 @@ export default function DashboardPage() {
         <MacroPills totals={totals} />
         <div className="h-5" />
       </div>
-      <MealsList logs={logs} onEdit={onEdit} onDelete={remove} />
+      <MealsList
+        logs={logs}
+        onEdit={onEdit}
+        onDelete={(id) => setPendingDeleteId(id)}
+      />
       <div className="h-5" />
       <EditFoodModal onSaved={refresh} />
       <SaveFavModal onSaved={refresh} />
+      <ConfirmPopup
+        open={pendingDeleteId !== null}
+        question={
+          pendingLog
+            ? `Jeste li sigurni da želite obrisati namirnicu \"${pendingLog.food_name}\" iz obroka?`
+            : "Jeste li sigurni da želite obrisati ovu namirnicu?"
+        }
+        onClose={() => setPendingDeleteId(null)}
+        button1={{
+          text: "Ne",
+          variant: "cancel",
+          onClick: () => setPendingDeleteId(null),
+        }}
+        button2={{
+          text: "Da",
+          variant: "orange",
+          onClick: onDelete,
+        }}
+      />
     </>
   );
 }

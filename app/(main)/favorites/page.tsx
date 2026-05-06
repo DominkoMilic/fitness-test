@@ -3,6 +3,7 @@ import { useState } from "react";
 import { FavTabs } from "@/components/favorites/FavTabs";
 import { FavCard } from "@/components/favorites/FavCard";
 import { AddFavModal } from "@/components/modals/AddFavModal";
+import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useUIStore } from "@/store/useUIStore";
@@ -14,25 +15,38 @@ export default function FavoritesPage() {
   const openModal = useUIStore((s) => s.openModal);
   const showToast = useUIStore((s) => s.showToast);
   const [filter, setFilter] = useState<MealFilter>("sve");
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const list = filter === "sve" ? favs : favs.filter((f) => f.meal === filter);
+  const pendingFavorite = favs.find((f) => f.id === pendingDeleteId) ?? null;
 
-  const onDelete = async (id: number) => {
-    if (!confirm("Obriši omiljeni obrok?")) return;
-    await remove(id);
+  const onDelete = async () => {
+    if (pendingDeleteId === null) return;
+    await remove(pendingDeleteId);
+    setPendingDeleteId(null);
     showToast("Obrisano");
   };
 
   return (
     <>
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
-        <div className="text-base font-extrabold" style={{ color: "var(--color-navy)" }}>Omiljeni obroci</div>
+        <div
+          className="text-base font-extrabold"
+          style={{ color: "var(--color-navy)" }}
+        >
+          Omiljeni obroci
+        </div>
       </div>
       <FavTabs value={filter} onChange={setFilter} />
       <div className="px-3">
         {list.length === 0 ? (
-          <div className="text-center py-12 px-4 text-sm" style={{ color: "var(--color-muted)" }}>
-            Nema spremljenih obroka.<br /><br />
+          <div
+            className="text-center py-12 px-4 text-sm"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Nema spremljenih obroka.
+            <br />
+            <br />
             Unesi obrok u dnevnik pa ga spremi kao omiljeni.
           </div>
         ) : (
@@ -41,12 +55,31 @@ export default function FavoritesPage() {
               key={f.id}
               fav={f}
               onAdd={() => openModal("addFav", { fav: f })}
-              onDelete={() => onDelete(f.id)}
+              onDelete={() => setPendingDeleteId(f.id)}
             />
           ))
         )}
       </div>
       <AddFavModal onAdded={refresh} />
+      <ConfirmPopup
+        open={pendingDeleteId !== null}
+        question={
+          pendingFavorite
+            ? `Jeste li sigurni da želite obrisati omiljeni obrok \"${pendingFavorite.name}\"?`
+            : "Jeste li sigurni da želite obrisati omiljeni obrok?"
+        }
+        onClose={() => setPendingDeleteId(null)}
+        button1={{
+          text: "Ne",
+          variant: "cancel",
+          onClick: () => setPendingDeleteId(null),
+        }}
+        button2={{
+          text: "Da",
+          variant: "orange",
+          onClick: onDelete,
+        }}
+      />
     </>
   );
 }
