@@ -6,6 +6,12 @@ import type { AccessCodeRow } from "@/types/database";
 import { useUIStore } from "@/store/useUIStore";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 
+function formatExpireDateHR(value: string) {
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${Number(day)}.${Number(month)}.${year}.`;
+}
+
 export function CodeList({ refreshKey }: { refreshKey: number }) {
   const router = useRouter();
   const [codes, setCodes] = useState<AccessCodeRow[] | null>(null);
@@ -76,7 +82,7 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
                 className="text-[11px] mt-1"
                 style={{ color: "var(--color-muted)" }}
               >
-                {c.name} · do {c.exp} · {c.goal} kcal
+                {c.name} · do {formatExpireDateHR(c.exp)} · {c.goal} kcal
               </div>
             </div>
             <button

@@ -11,6 +11,12 @@ type Props = {
   children: ReactNode;
 };
 
+function formatExpireDateHR(value: string) {
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${Number(day)}.${Number(month)}.${year}.`;
+}
+
 export function AdminUserFrame({
   code,
   user,
@@ -87,7 +93,8 @@ export function AdminUserFrame({
             {user.name}
           </div>
           <div className="text-sm mt-1" style={{ color: "var(--color-muted)" }}>
-            Kod: {user.code} · cilj: {user.goal} kcal · vrijedi do {user.exp}
+            Kod: {user.code} · cilj: {user.goal} kcal · vrijedi do{" "}
+            {formatExpireDateHR(user.exp)}
           </div>
         </div>
       </div>
