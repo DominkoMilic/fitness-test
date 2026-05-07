@@ -68,7 +68,7 @@ npx supabase gen types typescript --project-id <id> > types/database.ts
 ## Notes
 
 - Auth is the legacy "access code" pattern (table `codes`), persisted to `localStorage` (`kf_saved_code`).
-- History (last 20 foods per code) and food cache (2 h TTL) live in `localStorage`.
+- Search history (max 15 per user) lives in `search_history` table. Food cache (2 h TTL) stays in `localStorage`.
 - Barcode scan uses native `BarcodeDetector` → Open Food Facts. Chrome-on-Android only.
 - Sheet sync pulls a public CSV export of a Google Sheet, diffs against `foods.name`, inserts new rows.
 - Admin password is client-side gate only — Supabase RLS must be the real boundary.

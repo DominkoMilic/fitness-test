@@ -24,7 +24,12 @@ export default function SearchPage() {
   const [scan, setScan] = useState(false);
   const { foods, addLocal } = useFoods();
   const user = useAuthStore((s) => s.user);
-  const { history, add: pushHistory } = useHistory(user?.code);
+  const {
+    historyIds,
+    add: pushHistory,
+    remove: removeHistory,
+    clear: clearHistory,
+  } = useHistory(user?.id);
   const openModal = useUIStore((s) => s.openModal);
 
   const filtered = useMemo(() => {
@@ -36,12 +41,14 @@ export default function SearchPage() {
   }, [q, foods]);
 
   const availableHistory = useMemo(() => {
-    const availableIds = new Set(foods.map((food) => Number(food.id)));
-    return history.filter((item) => availableIds.has(Number(item.id)));
-  }, [foods, history]);
+    const byId = new Map(foods.map((f) => [Number(f.id), f]));
+    return historyIds
+      .map((id) => byId.get(Number(id)))
+      .filter((f): f is FoodEntry => Boolean(f));
+  }, [foods, historyIds]);
 
   const onPick = (food: FoodEntry) => {
-    pushHistory(food);
+    pushHistory(Number(food.id));
     openModal("addFood", { food, defaultMeal: presetMeal });
   };
 
@@ -86,6 +93,8 @@ export default function SearchPage() {
             const f = foods.find((x) => Number(x.id) === id);
             if (f) onPick(f as FoodEntry);
           }}
+          onRemove={(id) => removeHistory(id)}
+          onClear={() => clearHistory()}
         />
       )}
       <AddFoodModal onAdded={onAdded} />

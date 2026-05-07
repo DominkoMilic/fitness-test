@@ -1,35 +1,78 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import type { FoodEntry } from "@/types/app";
+import {
+  clearSearchHistory,
+  listSearchHistory,
+  pushSearchHistory,
+  removeSearchHistoryItem,
+} from "@/lib/api/searchHistory";
 
-const MAX = 20;
-const key = (code: string | undefined) => `kf_history_${code || "guest"}`;
+export function useHistory(userId: string | undefined) {
+  const [historyIds, setHistoryIds] = useState<number[]>([]);
 
-export function useHistory(code: string | undefined) {
-  const [history, setHistory] = useState<FoodEntry[]>([]);
-
-  const load = useCallback(() => {
-    if (typeof window === "undefined") return;
+  const reload = useCallback(async () => {
+    if (!userId) {
+      setHistoryIds([]);
+      return;
+    }
     try {
-      const raw = localStorage.getItem(key(code));
-      setHistory(raw ? JSON.parse(raw) : []);
+      const rows = await listSearchHistory(userId);
+      setHistoryIds(rows.map((r) => Number(r.food_id)));
     } catch {
-      setHistory([]);
+      setHistoryIds([]);
     }
-  }, [code]);
+  }, [userId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
-  const add = (food: FoodEntry) => {
-    const next = [
-      { id: food.id, name: food.name, kcal: food.kcal, p: food.p, u: food.u, m: food.m },
-      ...history.filter((h) => h.id !== food.id),
-    ].slice(0, MAX);
-    setHistory(next);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(key(code), JSON.stringify(next));
+  // One-time cleanup of pre-DB localStorage history keys.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("kf_history_")) localStorage.removeItem(k);
     }
-  };
+  }, []);
 
-  return { history, add, reload: load };
+  const add = useCallback(
+    async (foodId: number) => {
+      if (!userId) return;
+      const id = Number(foodId);
+      setHistoryIds((prev) => [id, ...prev.filter((x) => x !== id)].slice(0, 15));
+      try {
+        await pushSearchHistory(userId, id);
+      } catch {
+        reload();
+      }
+    },
+    [userId, reload],
+  );
+
+  const remove = useCallback(
+    async (foodId: number) => {
+      if (!userId) return;
+      const id = Number(foodId);
+      setHistoryIds((prev) => prev.filter((x) => x !== id));
+      try {
+        await removeSearchHistoryItem(userId, id);
+      } catch {
+        reload();
+      }
+    },
+    [userId, reload],
+  );
+
+  const clear = useCallback(async () => {
+    if (!userId) return;
+    setHistoryIds([]);
+    try {
+      await clearSearchHistory(userId);
+    } catch {
+      reload();
+    }
+  }, [userId, reload]);
+
+  return { historyIds, add, remove, clear, reload };
 }
