@@ -21,23 +21,6 @@ const items = [
     ),
   },
   {
-    href: "/search",
-    label: "Dodaj",
-    icon: (
-      <svg
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        viewBox="0 0 24 24"
-        width={20}
-        height={20}
-      >
-        <circle cx={11} cy={11} r={8} />
-        <path d="m21 21-4.35-4.35" />
-      </svg>
-    ),
-  },
-  {
     href: "/favorites",
     label: "Omiljeni",
     icon: (

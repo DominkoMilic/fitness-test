@@ -5,21 +5,28 @@ import {
   listSearchHistory,
   pushSearchHistory,
   removeSearchHistoryItem,
+  type SearchHistoryRow,
 } from "@/lib/api/searchHistory";
 
+export type HistoryEntry = {
+  foodId: number;
+  grams: number;
+  pieces: number | null;
+};
+
 export function useHistory(userId: string | undefined) {
-  const [historyIds, setHistoryIds] = useState<number[]>([]);
+  const [entries, setEntries] = useState<HistoryEntry[]>([]);
 
   const reload = useCallback(async () => {
     if (!userId) {
-      setHistoryIds([]);
+      setEntries([]);
       return;
     }
     try {
       const rows = await listSearchHistory(userId);
-      setHistoryIds(rows.map((r) => Number(r.food_id)));
+      setEntries(rows.map(rowToEntry));
     } catch {
-      setHistoryIds([]);
+      setEntries([]);
     }
   }, [userId]);
 
@@ -36,13 +43,16 @@ export function useHistory(userId: string | undefined) {
     }
   }, []);
 
-  const add = useCallback(
-    async (foodId: number) => {
+  const push = useCallback(
+    async (foodId: number, grams: number, pieces: number | null) => {
       if (!userId) return;
       const id = Number(foodId);
-      setHistoryIds((prev) => [id, ...prev.filter((x) => x !== id)].slice(0, 15));
+      const next: HistoryEntry = { foodId: id, grams, pieces };
+      setEntries((prev) =>
+        [next, ...prev.filter((e) => e.foodId !== id)].slice(0, 15),
+      );
       try {
-        await pushSearchHistory(userId, id);
+        await pushSearchHistory(userId, id, grams, pieces);
       } catch {
         reload();
       }
@@ -54,7 +64,7 @@ export function useHistory(userId: string | undefined) {
     async (foodId: number) => {
       if (!userId) return;
       const id = Number(foodId);
-      setHistoryIds((prev) => prev.filter((x) => x !== id));
+      setEntries((prev) => prev.filter((e) => e.foodId !== id));
       try {
         await removeSearchHistoryItem(userId, id);
       } catch {
@@ -66,7 +76,7 @@ export function useHistory(userId: string | undefined) {
 
   const clear = useCallback(async () => {
     if (!userId) return;
-    setHistoryIds([]);
+    setEntries([]);
     try {
       await clearSearchHistory(userId);
     } catch {
@@ -74,5 +84,9 @@ export function useHistory(userId: string | undefined) {
     }
   }, [userId, reload]);
 
-  return { historyIds, add, remove, clear, reload };
+  return { entries, push, remove, clear, reload };
+}
+
+function rowToEntry(r: SearchHistoryRow): HistoryEntry {
+  return { foodId: r.food_id, grams: r.grams, pieces: r.pieces };
 }

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/Input";
 import { useUIStore } from "@/store/useUIStore";
@@ -13,10 +13,16 @@ import {
 } from "@/lib/utils/macros";
 import { MEAL_KEYS, MEAL_NAMES } from "@/lib/constants/meals";
 import { insertLog } from "@/lib/api/foodLogs";
+import { pushSearchHistory } from "@/lib/api/searchHistory";
 import type { FoodEntry } from "@/types/app";
 import type { MealKey } from "@/types/database";
 
-type Payload = { food: FoodEntry; defaultMeal?: MealKey };
+type Payload = {
+  food: FoodEntry;
+  defaultMeal?: MealKey;
+  defaultGrams?: number;
+  defaultPieces?: number | null;
+};
 
 export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
   const modal = useUIStore((s) => s.modal);
@@ -29,14 +35,22 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
   const [unit, setUnit] = useState<"g" | "kom">("g");
   const [qty, setQty] = useState<number>(100);
   const [meal, setMeal] = useState<MealKey>("dorucak");
+  const [lastPayload, setLastPayload] = useState<Payload | null>(null);
 
-  useEffect(() => {
-    if (modal === "addFood" && payload) {
-      setUnit("g");
-      setQty(100);
-      setMeal(payload.defaultMeal ?? "dorucak");
-    }
-  }, [modal, payload]);
+  if (modal === "addFood" && payload && lastPayload !== payload) {
+    setLastPayload(payload);
+    const initUnit: "g" | "kom" =
+      payload.defaultPieces != null && payload.defaultPieces > 0 ? "kom" : "g";
+    const initQty =
+      initUnit === "kom"
+        ? Number(payload.defaultPieces)
+        : (payload.defaultGrams ?? 100);
+    setUnit(initUnit);
+    setQty(initQty);
+    setMeal(payload.defaultMeal ?? "dorucak");
+  } else if (modal !== "addFood" && lastPayload) {
+    setLastPayload(null);
+  }
 
   if (modal !== "addFood" || !payload) return null;
   const food = payload.food;
@@ -53,18 +67,26 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
     if (!user) return;
     closeModal();
     showToast(`Dodano: ${food.name}`);
+    const finalGrams = Math.round(grams * 10) / 10;
+    const finalPieces = unit === "kom" ? qty : null;
     await insertLog({
       user_id: user.id,
       date: dateForOffset(offset),
       meal,
       food_name: food.name,
-      grams: Math.round(grams * 10) / 10,
+      grams: finalGrams,
       kcal: macros.kcal,
       p: macros.p,
       u: macros.u,
       m: macros.m,
-      pieces: unit === "kom" ? qty : null,
+      pieces: finalPieces,
     });
+    const numericId = Number(food.id);
+    if (Number.isFinite(numericId)) {
+      pushSearchHistory(user.id, numericId, finalGrams, finalPieces).catch(
+        () => {},
+      );
+    }
     onAdded?.();
   };
 
@@ -139,23 +161,35 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
         <MacroBox name="Ugljik." v={macros.u} />
         <MacroBox name="Masti" v={macros.m} />
       </div>
-      <div
-        className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
-        style={{ color: "var(--color-muted)" }}
-      >
-        Obrok
-      </div>
-      <Select
-        value={meal}
-        onChange={(e) => setMeal(e.target.value as MealKey)}
-        className="mb-4"
-      >
-        {MEAL_KEYS.map((k) => (
-          <option key={k} value={k}>
-            {MEAL_NAMES[k]}
-          </option>
-        ))}
-      </Select>
+      {payload.defaultMeal ? (
+        <div
+          className="mb-4 px-3.5 py-2.5 rounded-xl bg-bg text-[13px] font-semibold flex items-center justify-between"
+          style={{ color: "var(--color-navy)" }}
+        >
+          <span style={{ color: "var(--color-muted)" }}>Obrok</span>
+          <span>{MEAL_NAMES[payload.defaultMeal]}</span>
+        </div>
+      ) : (
+        <>
+          <div
+            className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Obrok
+          </div>
+          <Select
+            value={meal}
+            onChange={(e) => setMeal(e.target.value as MealKey)}
+            className="mb-4"
+          >
+            {MEAL_KEYS.map((k) => (
+              <option key={k} value={k}>
+                {MEAL_NAMES[k]}
+              </option>
+            ))}
+          </Select>
+        </>
+      )}
       <div className="flex gap-2.5">
         <button
           onClick={closeModal}

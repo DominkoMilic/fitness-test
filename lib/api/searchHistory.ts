@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabase/client";
 export type SearchHistoryRow = {
   user_id: string;
   food_id: number;
+  grams: number;
+  pieces: number | null;
   last_searched_at: string;
 };
 
@@ -16,14 +18,27 @@ export async function listSearchHistory(
     .order("last_searched_at", { ascending: false })
     .limit(15);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map((r) => ({
+    user_id: String(r.user_id),
+    food_id: Number(r.food_id),
+    grams: Number(r.grams ?? 100),
+    pieces: r.pieces == null ? null : Number(r.pieces),
+    last_searched_at: String(r.last_searched_at),
+  }));
 }
 
-export async function pushSearchHistory(userId: string, foodId: number) {
+export async function pushSearchHistory(
+  userId: string,
+  foodId: number,
+  grams: number,
+  pieces: number | null,
+) {
   const { error } = await supabase.from("search_history").upsert(
     {
       user_id: userId,
       food_id: foodId,
+      grams,
+      pieces,
       last_searched_at: new Date().toISOString(),
     },
     { onConflict: "user_id,food_id" },
