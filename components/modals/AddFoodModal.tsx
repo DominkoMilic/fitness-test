@@ -80,7 +80,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
         100g = {food.kcal} kcal
       </div>
       {piece && (
-        <div className="flex bg-[var(--color-bg)] rounded-xl p-1 mb-4">
+        <div className="flex bg-bg rounded-xl p-1 mb-4">
           {(["g", "kom"] as const).map((u) => (
             <button
               key={u}
@@ -120,7 +120,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
           {piece.label}
         </div>
       )}
-      <div className="flex justify-between items-center bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl px-3.5 py-3 mb-4">
+      <div className="flex justify-between items-center bg-linear-to-br from-blue-50 to-indigo-100 rounded-xl px-3.5 py-3 mb-4">
         <span
           className="text-[13px] font-semibold"
           style={{ color: "var(--color-muted)" }}
@@ -159,16 +159,16 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
       <div className="flex gap-2.5">
         <button
           onClick={closeModal}
-          className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-[var(--color-bg)] text-[15px] font-semibold"
+          className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-bg text-[15px] font-semibold"
           style={{ color: "var(--color-muted)" }}
         >
           Odustani
         </button>
         <button
           onClick={onConfirm}
-          className="flex-[2] py-3.5 rounded-xl bg-gradient-to-br from-[#1b3255] to-[#162844] text-white text-[15px] font-bold"
+          className="flex-2 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[15px] font-bold"
         >
-          Dodaj obrok
+          Dodaj
         </button>
       </div>
     </Modal>
@@ -177,7 +177,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
 
 function MacroBox({ name, v }: { name: string; v: number }) {
   return (
-    <div className="flex-1 bg-[var(--color-bg)] rounded-xl py-2 text-center border border-border">
+    <div className="flex-1 bg-bg rounded-xl py-2 text-center border border-border">
       <div
         className="text-[15px] font-extrabold"
         style={{ color: "var(--color-navy)" }}

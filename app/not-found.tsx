@@ -27,7 +27,7 @@ export default function NotFound() {
           href="/search"
           className="w-full py-3 rounded-xl text-white text-sm font-bold border border-white/20 bg-white/10"
         >
-          Dodaj obrok
+          Dodaj namirnicu
         </Link>
       </div>
 
