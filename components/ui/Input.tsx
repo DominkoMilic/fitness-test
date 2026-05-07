@@ -1,10 +1,20 @@
 "use client";
-import { InputHTMLAttributes, SelectHTMLAttributes, ReactNode } from "react";
+import {
+  InputHTMLAttributes,
+  Ref,
+  SelectHTMLAttributes,
+  ReactNode,
+} from "react";
 
-export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
-  const { className = "", ...rest } = props;
+type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+  ref?: Ref<HTMLInputElement>;
+};
+
+export function Input(props: InputProps) {
+  const { className = "", ref, ...rest } = props;
   return (
     <input
+      ref={ref}
       className={`w-full py-3 px-3.5 rounded-xl text-base font-semibold outline-none border-[1.5px] border-border focus:border-orange text-navy ${className}`}
       {...rest}
     />

@@ -126,12 +126,19 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
       <Input
         type="number"
         inputMode="decimal"
+        autoFocus={
+          payload.defaultGrams != null || payload.defaultPieces != null
+        }
+        ref={(el) => {
+          if (
+            el &&
+            (payload.defaultGrams != null || payload.defaultPieces != null)
+          ) {
+            requestAnimationFrame(() => el.focus());
+          }
+        }}
         value={qty}
         onChange={(e) => setQty(parseFloat(e.target.value) || 0)}
-        onFocus={(e) => {
-          const input = e.currentTarget;
-          setTimeout(() => input.select(), 0);
-        }}
         className="mb-3"
       />
       {unit === "kom" && piece && (
