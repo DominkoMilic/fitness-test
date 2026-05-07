@@ -35,6 +35,11 @@ export default function SearchPage() {
       .slice(0, 25);
   }, [q, foods]);
 
+  const availableHistory = useMemo(() => {
+    const availableIds = new Set(foods.map((food) => Number(food.id)));
+    return history.filter((item) => availableIds.has(Number(item.id)));
+  }, [foods, history]);
+
   const onPick = (food: FoodEntry) => {
     pushHistory(food);
     openModal("addFood", { food, defaultMeal: presetMeal });
@@ -76,11 +81,9 @@ export default function SearchPage() {
         )
       ) : (
         <HistoryList
-          items={history}
+          items={availableHistory}
           onAdd={(id) => {
-            const f =
-              foods.find((x) => Number(x.id) === id) ||
-              history.find((x) => Number(x.id) === id);
+            const f = foods.find((x) => Number(x.id) === id);
             if (f) onPick(f as FoodEntry);
           }}
         />

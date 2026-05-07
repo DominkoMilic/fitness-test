@@ -12,13 +12,14 @@ npm run dev
 
 ## Env vars
 
-| Var | Purpose |
-|-----|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable anon key |
-| `NEXT_PUBLIC_ADMIN_PASSWORD` | client-side admin gate |
-| `NEXT_PUBLIC_SYNC_SHEET_ID` | Google Sheet ID for foods sync |
-| `NEXT_PUBLIC_SYNC_SHEET_GID` | gid of the sheet tab |
+| Var                             | Purpose                                     |
+| ------------------------------- | ------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL                        |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable anon key                        |
+| `SUPABASE_SERVICE_ROLE_KEY`     | server-side admin sync insert/delete access |
+| `NEXT_PUBLIC_ADMIN_PASSWORD`    | client-side admin gate                      |
+| `NEXT_PUBLIC_SYNC_SHEET_ID`     | Google Sheet ID for foods sync              |
+| `NEXT_PUBLIC_SYNC_SHEET_GID`    | gid of the sheet tab                        |
 
 ## Folder structure
 

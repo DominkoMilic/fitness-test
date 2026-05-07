@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useUIStore } from "@/store/useUIStore";
-import { fetchNewSheetFoods } from "@/lib/api/sheetSync";
+import { fetchSheetSyncPlan } from "@/lib/api/sheetSync";
+import { listMissingImportedFoods } from "@/lib/api/foods";
 
 function formatTs(ts: string): string {
   const d = new Date(ts);
@@ -24,8 +25,18 @@ export function SyncSection() {
   const onPreview = async () => {
     setLoading(true);
     try {
-      const foods = await fetchNewSheetFoods();
-      openModal("syncPreview", { foods });
+      const plan = await fetchSheetSyncPlan();
+      const foodsToDelete = await listMissingImportedFoods(
+        plan.keepNames,
+        plan.keepRowIds,
+      );
+      openModal("syncPreview", {
+        foods: plan.newFoods,
+        keepNames: plan.keepNames,
+        keepRowIds: plan.keepRowIds,
+        removeCount: foodsToDelete.length,
+        foodsToDelete,
+      });
     } catch (e) {
       showToast(`Greška: ${(e as Error).message}`);
     } finally {
