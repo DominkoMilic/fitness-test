@@ -28,6 +28,12 @@ export type Database = {
         Update: Partial<FavoriteInsert>;
         Relationships: [];
       };
+      search_history: {
+        Row: SearchHistoryDbRow;
+        Insert: SearchHistoryDbInsert;
+        Update: Partial<SearchHistoryDbInsert>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -121,3 +127,18 @@ export type FavoriteInsert = Omit<FavoriteRow, "id" | "created_at"> & {
 };
 
 export type MealKey = "dorucak" | "rucak" | "vecera" | "uzina";
+
+export type SearchHistoryDbRow = {
+  user_id: string;
+  food_id: number;
+  grams: number;
+  pieces: number | null;
+  last_searched_at: string;
+};
+export type SearchHistoryDbInsert = {
+  user_id: string;
+  food_id: number;
+  grams?: number;
+  pieces?: number | null;
+  last_searched_at?: string;
+};

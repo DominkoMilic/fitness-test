@@ -11,7 +11,19 @@ const styles: Record<Variant, string> = {
   orange: "bg-gradient-to-br from-[#c85a10] to-[#a84a0d] text-white",
 };
 
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
+type Props = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  | "onAnimationStart"
+  | "onAnimationEnd"
+  | "onAnimationIteration"
+  | "onDrag"
+  | "onDragStart"
+  | "onDragEnd"
+  | "onDragEnter"
+  | "onDragLeave"
+  | "onDragOver"
+  | "onDragExit"
+> & {
   variant?: Variant;
   full?: boolean;
 };
