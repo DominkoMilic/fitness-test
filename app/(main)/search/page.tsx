@@ -122,10 +122,28 @@ export default function SearchPage() {
   return (
     <>
       <div
-        className="px-5 pt-4 pb-2 text-base font-extrabold"
+        className="flex items-center gap-3 px-5 pt-4 pb-2"
         style={{ color: "var(--color-navy)" }}
       >
-        Dodaj u: {MEAL_NAMES[presetMeal]}
+        <button
+          onClick={() => router.push("/dashboard")}
+          aria-label="Natrag na Danas"
+          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 active:bg-black/10 -ml-1"
+        >
+          <svg
+            width={20}
+            height={20}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.25}
+            viewBox="0 0 24 24"
+          >
+            <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <span className="text-base font-extrabold">
+          Dodaj u: {MEAL_NAMES[presetMeal]}
+        </span>
       </div>
       <SearchBar value={q} onChange={setQ} onScan={() => setScan((v) => !v)} />
       <BarcodeScanner
