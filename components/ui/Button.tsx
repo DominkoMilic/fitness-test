@@ -1,5 +1,6 @@
 "use client";
 import { ButtonHTMLAttributes } from "react";
+import { motion } from "framer-motion";
 
 type Variant = "primary" | "navy" | "cancel" | "orange";
 
@@ -22,7 +23,9 @@ export function Button({
   ...rest
 }: Props) {
   return (
-    <button
+    <motion.button
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 500, damping: 30 }}
       className={`py-3.5 px-4 rounded-xl text-[15px] font-bold cursor-pointer ${styles[variant]} ${full ? "w-full" : ""} ${className}`}
       {...rest}
     />

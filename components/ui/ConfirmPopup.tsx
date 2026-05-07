@@ -1,5 +1,6 @@
 "use client";
 import { useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 
 type PopupAction = {
@@ -41,21 +42,30 @@ export function ConfirmPopup({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-200 flex items-center justify-center px-4"
-      style={{ background: "rgba(10,16,28,0.68)" }}
-      onClick={onClose}
-      aria-hidden={false}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="relative w-full max-w-sm rounded-3xl bg-white shadow-2xl px-5 pt-5 pb-4"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="confirm-backdrop"
+          className="fixed inset-0 z-200 flex items-center justify-center px-4"
+          style={{ background: "rgba(10,16,28,0.68)" }}
+          onClick={onClose}
+          aria-hidden={false}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16, ease: "easeOut" }}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-sm rounded-3xl bg-white shadow-2xl px-5 pt-5 pb-4"
+            onClick={(event) => event.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", damping: 24, stiffness: 320 }}
+          >
         <button
           type="button"
           onClick={onClose}
@@ -100,7 +110,9 @@ export function ConfirmPopup({
             {button2.text}
           </Button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
