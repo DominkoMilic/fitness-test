@@ -42,11 +42,16 @@ export type AccessCodeRow = {
   name: string;
   exp: string; // YYYY-MM-DD
   goal: number;
+  cookies_accepted_at: string | null;
   created_at: string | null;
 };
-export type AccessCodeInsert = Omit<AccessCodeRow, "id" | "created_at"> & {
+export type AccessCodeInsert = Omit<
+  AccessCodeRow,
+  "id" | "created_at" | "cookies_accepted_at"
+> & {
   id?: string;
   created_at?: string;
+  cookies_accepted_at?: string | null;
 };
 
 export type FoodRow = {

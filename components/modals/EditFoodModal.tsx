@@ -95,7 +95,7 @@ export function EditFoodModal({ onSaved }: { onSaved?: () => void }) {
           1 kom ≈ {Math.round(editPieceG * 10) / 10}g
         </div>
       )}
-      <div className="flex justify-between items-center bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl px-3.5 py-3 mb-4">
+      <div className="flex justify-between items-center bg-linear-to-br from-blue-50 to-indigo-100 rounded-xl px-3.5 py-3 mb-4">
         <span
           className="text-[13px] font-semibold"
           style={{ color: "var(--color-muted)" }}
@@ -123,14 +123,14 @@ export function EditFoodModal({ onSaved }: { onSaved?: () => void }) {
       <div className="flex gap-2.5">
         <button
           onClick={closeModal}
-          className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-[var(--color-bg)] text-[15px] font-semibold"
+          className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-bg text-[15px] font-semibold"
           style={{ color: "var(--color-muted)" }}
         >
           Odustani
         </button>
         <button
           onClick={onConfirm}
-          className="flex-[2] py-3.5 rounded-xl bg-gradient-to-br from-[#1b3255] to-[#162844] text-white text-[15px] font-bold"
+          className="flex-2 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[15px] font-bold"
         >
           Spremi
         </button>

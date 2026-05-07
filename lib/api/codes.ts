@@ -57,3 +57,10 @@ export async function updateGoal(userId: string, goal: number) {
 export async function updateCodeExpiry(userId: string, exp: string) {
   await supabase.from("codes").update({ exp }).eq("id", userId);
 }
+
+export async function recordCookieAck(userId: string) {
+  await supabase
+    .from("codes")
+    .update({ cookies_accepted_at: new Date().toISOString() })
+    .eq("id", userId);
+}

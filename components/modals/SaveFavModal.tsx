@@ -108,7 +108,7 @@ export function SaveFavModal({ onSaved }: { onSaved?: () => void }) {
         ))}
       </Select>
       <div
-        className="bg-[var(--color-bg)] rounded-xl px-3 py-2.5 mb-4 text-xs"
+        className="bg-bg rounded-xl px-3 py-2.5 mb-4 text-xs"
         style={{ color: "var(--color-muted)" }}
       >
         {items.map((i, idx) => (
@@ -126,14 +126,14 @@ export function SaveFavModal({ onSaved }: { onSaved?: () => void }) {
       <div className="flex gap-2.5">
         <button
           onClick={closeModal}
-          className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-[var(--color-bg)] text-[15px] font-semibold"
+          className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-bg text-[15px] font-semibold"
           style={{ color: "var(--color-muted)" }}
         >
           Odustani
         </button>
         <button
           onClick={onConfirm}
-          className="flex-[2] py-3.5 rounded-xl bg-gradient-to-br from-[#1b3255] to-[#162844] text-white text-[15px] font-bold"
+          className="flex-2 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[15px] font-bold"
         >
           Spremi ♥
         </button>

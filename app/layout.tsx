@@ -4,6 +4,7 @@ import { Toast } from "@/components/ui/Toast";
 import { LoadingOverlay } from "@/components/ui/Loading";
 import { RouteLoadingSync } from "@/components/layout/RouteLoadingSync";
 import { PWARegister } from "@/components/layout/PWARegister";
+import { CookieBanner } from "@/components/legal/CookieBanner";
 
 export const metadata: Metadata = {
   title: "Krešimir Fit Tracker",
@@ -50,6 +51,7 @@ export default function RootLayout({
         <PWARegister />
         <Toast />
         <LoadingOverlay />
+        <CookieBanner />
       </body>
     </html>
   );

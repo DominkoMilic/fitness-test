@@ -8,8 +8,8 @@ type Props = {
 
 export function SearchBar({ value, onChange, onScan }: Props) {
   return (
-    <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white border-b border-border sticky top-[58px] z-[5]">
-      <div className="flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border-2 border-[var(--color-orange)] bg-[var(--color-bg)]">
+    <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white border-b border-border sticky top-14.5 z-5">
+      <div className="flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border-2 border-orange bg-bg">
         <svg
           width={16}
           height={16}
@@ -32,7 +32,7 @@ export function SearchBar({ value, onChange, onScan }: Props) {
       </div>
       <button
         onClick={onScan}
-        className="bg-[var(--color-navy)] rounded-lg p-2.5 flex items-center"
+        className="bg-navy rounded-lg p-2.5 flex items-center"
       >
         <svg
           width={18}
