@@ -22,7 +22,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <>
       <Header />
-      <main style={{ paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>{children}</main>
+      <main style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom))" }}>{children}</main>
       <BottomNav />
       <GoalModal />
     </>

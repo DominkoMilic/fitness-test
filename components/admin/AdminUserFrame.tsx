@@ -5,6 +5,7 @@ import type { AccessCodeRow } from "@/types/database";
 import { Modal } from "@/components/ui/Modal";
 import { updateCodeExpiry } from "@/lib/api/codes";
 import { useUIStore } from "@/store/useUIStore";
+import { PrivacyFooter } from "@/components/legal/PrivacyFooter";
 
 type Props = {
   code: string;
@@ -165,6 +166,8 @@ export function AdminUserFrame({
       </div>
 
       {children}
+
+      <PrivacyFooter />
 
       <Modal open={editOpen} onClose={() => setEditOpen(false)}>
         <div

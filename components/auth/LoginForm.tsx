@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUIStore } from "@/store/useUIStore";
+import { PrivacyFooter } from "@/components/legal/PrivacyFooter";
 
 export function LoginForm() {
   const login = useAuthStore((s) => s.login);
@@ -84,6 +85,7 @@ export function LoginForm() {
       >
         admin
       </Link>
+      <PrivacyFooter className="mt-6 text-white/40" />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   isAdminAuthenticated,
   setAdminAuthenticated,
 } from "@/lib/utils/adminAuth";
+import { PrivacyFooter } from "@/components/legal/PrivacyFooter";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -88,6 +89,7 @@ export default function AdminLoginPage() {
       >
         ← Nazad na prijavu korisnika
       </Link>
+      <PrivacyFooter className="mt-6 text-white/40" />
     </div>
   );
 }

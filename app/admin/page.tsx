@@ -10,6 +10,7 @@ import {
   clearAdminAuthenticated,
   isAdminAuthenticated,
 } from "@/lib/utils/adminAuth";
+import { PrivacyFooter } from "@/components/legal/PrivacyFooter";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -67,6 +68,7 @@ export default function AdminPage() {
         <SyncSection />
         <CodeList refreshKey={refreshKey} />
         <SyncPreviewModal />
+        <PrivacyFooter />
       </div>
       <ConfirmPopup
         open={confirmOpen}
