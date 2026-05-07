@@ -5,10 +5,11 @@ import type { FavoriteRow } from "@/types/database";
 type Props = {
   fav: FavoriteRow;
   onAdd?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
 };
 
-export function FavCard({ fav, onAdd, onDelete }: Props) {
+export function FavCard({ fav, onAdd, onEdit, onDelete }: Props) {
   const totalKcal =
     fav.total_kcal ?? fav.items.reduce((s, i) => s + (Number(i.kcal) || 0), 0);
   const totalP =
@@ -32,8 +33,17 @@ export function FavCard({ fav, onAdd, onDelete }: Props) {
             {Math.round(totalP)}g · {fav.items.length} namirnica
           </div>
         </div>
-        {(onAdd || onDelete) && (
+        {(onAdd || onEdit || onDelete) && (
           <div className="flex gap-1.5 items-center">
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="rounded-lg px-3 py-1.5 text-xs font-bold border border-border"
+                style={{ color: "var(--color-navy)" }}
+              >
+                Uredi
+              </button>
+            )}
             {onAdd && (
               <button
                 onClick={onAdd}

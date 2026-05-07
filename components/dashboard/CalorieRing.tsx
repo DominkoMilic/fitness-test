@@ -62,10 +62,10 @@ export function CalorieRing({ eaten, goal }: Props) {
   const subNote = noIntakeYet
     ? "Unesite današnje obroke kako biste pratili napredak."
     : ratio > 1.05
-      ? `Prešli ste cilj za ${over} kcal.`
+      ? `Prešli ste cilj za otprilike ${over} kcal.`
       : ratio >= 0.75
         ? null
-        : `Preostalo: ${remaining} kcal do dnevnog cilja.`;
+        : `Preostalo: otprilike ${remaining} kcal do dnevnog cilja.`;
 
   return (
     <div className="mx-auto mb-5 flex flex-col items-center">

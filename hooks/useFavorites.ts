@@ -4,6 +4,7 @@ import {
   listFavorites,
   createFavorite,
   deleteFavorite,
+  updateFavorite,
 } from "@/lib/api/favorites";
 import type { FavoriteInsert, FavoriteRow } from "@/types/database";
 
@@ -36,5 +37,13 @@ export function useFavorites(userId: string | undefined) {
     await deleteFavorite(id);
   };
 
-  return { favs, loading, refresh, add, remove };
+  const update = async (
+    id: number,
+    patch: Parameters<typeof updateFavorite>[2],
+  ) => {
+    await updateFavorite(id, userId, patch);
+    await refresh();
+  };
+
+  return { favs, loading, refresh, add, remove, update };
 }

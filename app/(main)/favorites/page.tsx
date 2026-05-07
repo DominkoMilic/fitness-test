@@ -3,6 +3,7 @@ import { useState } from "react";
 import { FavTabs } from "@/components/favorites/FavTabs";
 import { FavCard } from "@/components/favorites/FavCard";
 import { AddFavModal } from "@/components/modals/AddFavModal";
+import { EditFavModal } from "@/components/modals/EditFavModal";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useFavorites } from "@/hooks/useFavorites";
@@ -54,6 +55,7 @@ export default function FavoritesPage() {
             <FavCard
               key={f.id}
               fav={f}
+              onEdit={() => openModal("editFav", { fav: f })}
               onAdd={() => openModal("addFav", { fav: f })}
               onDelete={() => setPendingDeleteId(f.id)}
             />
@@ -61,6 +63,7 @@ export default function FavoritesPage() {
         )}
       </div>
       <AddFavModal onAdded={refresh} />
+      <EditFavModal onSaved={refresh} />
       <ConfirmPopup
         open={pendingDeleteId !== null}
         question={

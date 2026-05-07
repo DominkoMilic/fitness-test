@@ -12,6 +12,7 @@ export type ModalKind =
   | "goal"
   | "saveFav"
   | "addFav"
+  | "editFav"
   | "syncPreview";
 
 type UIState = {
