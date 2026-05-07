@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PrivacyFooter } from "@/components/legal/PrivacyFooter";
 
 const items = [
   {
@@ -42,38 +41,35 @@ const items = [
 export function BottomNav() {
   const path = usePathname();
   return (
-    <div
-      className="fixed bottom-0 left-0 right-0 max-w-107.5 mx-auto z-10 bg-white border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
+    <nav
+      className="fixed bottom-0 left-0 right-0 max-w-107.5 mx-auto z-10 flex bg-white border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <nav className="flex">
-        {items.map((it) => {
-          const active = path?.startsWith(it.href);
-          return (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] transition-colors duration-150 hover:bg-black/3 active:bg-black/6 ${
-                active ? "font-bold" : "font-medium"
-              }`}
+      {items.map((it) => {
+        const active = path?.startsWith(it.href);
+        return (
+          <Link
+            key={it.href}
+            href={it.href}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] transition-colors duration-150 hover:bg-black/3 active:bg-black/6 ${
+              active ? "font-bold" : "font-medium"
+            }`}
+            style={{
+              color: active ? "var(--color-navy)" : "var(--color-muted)",
+            }}
+          >
+            {it.icon}
+            {it.label}
+            <div
+              className="w-5 h-0.5 rounded-sm mt-0.5"
               style={{
-                color: active ? "var(--color-navy)" : "var(--color-muted)",
+                background: "var(--color-orange)",
+                opacity: active ? 1 : 0,
               }}
-            >
-              {it.icon}
-              {it.label}
-              <div
-                className="w-5 h-0.5 rounded-sm mt-0.5"
-                style={{
-                  background: "var(--color-orange)",
-                  opacity: active ? 1 : 0,
-                }}
-              />
-            </Link>
-          );
-        })}
-      </nav>
-      <PrivacyFooter variant="fixed" className="border-t border-border" />
-    </div>
+            />
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

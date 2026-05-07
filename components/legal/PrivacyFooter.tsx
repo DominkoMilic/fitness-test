@@ -6,9 +6,14 @@ import * as CookieConsent from "vanilla-cookieconsent";
 type Props = {
   className?: string;
   variant?: "fixed" | "inline";
+  style?: React.CSSProperties;
 };
 
-export function PrivacyFooter({ className = "", variant = "inline" }: Props) {
+export function PrivacyFooter({
+  className = "",
+  variant = "inline",
+  style,
+}: Props) {
   useEffect(() => {
     // No-op; ensures CC module is loaded before showPreferences is called.
   }, []);
@@ -29,7 +34,7 @@ export function PrivacyFooter({ className = "", variant = "inline" }: Props) {
   return (
     <div
       className={`${base} ${layout} ${className}`}
-      style={{ color: "var(--color-muted)" }}
+      style={{ color: "var(--color-muted)", ...style }}
     >
       <Link href="/pravila-privatnosti" className="underline hover:opacity-80">
         Pravila privatnosti

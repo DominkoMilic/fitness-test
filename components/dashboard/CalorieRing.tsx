@@ -2,12 +2,6 @@
 
 type Props = { eaten: number; goal: number };
 
-// Badge zone thresholds
-// < 25%  → yellow  "Unesi još kalorija do dnevnog cilja"
-// 75–105% → green  "Dobar posao, unutar dnevne doze si"
-// > 105%  → orange "Unijeli ste previše kalorija danas"
-// 25–75%  → neutral (no badge colour accent, generic note)
-
 const ZONE = {
   low: {
     ring: "#d0ad2f",
