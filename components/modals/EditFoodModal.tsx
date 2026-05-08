@@ -45,6 +45,10 @@ export function EditFoodModal({ onSaved }: { onSaved?: () => void }) {
   const macros = macroForGrams(food, grams);
 
   const onConfirm = async () => {
+    if (!qty || qty <= 0 || grams <= 0) {
+      showToast("Količina mora biti veća od 0");
+      return;
+    }
     closeModal();
     showToast("Spremljeno");
     await updateLog(log.id, {
@@ -79,7 +83,7 @@ export function EditFoodModal({ onSaved }: { onSaved?: () => void }) {
       <Input
         type="number"
         inputMode="decimal"
-        value={qty}
+        value={qty === 0 ? "" : qty}
         onChange={(e) => setQty(parseFloat(e.target.value) || 0)}
         onFocus={(e) => {
           const input = e.currentTarget;

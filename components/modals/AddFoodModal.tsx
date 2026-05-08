@@ -65,6 +65,10 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
 
   const onConfirm = async () => {
     if (!user) return;
+    if (!qty || qty <= 0 || grams <= 0) {
+      showToast("Količina mora biti veća od 0");
+      return;
+    }
     closeModal();
     showToast(`Dodano: ${food.name}`);
     const finalGrams = Math.round(grams * 10) / 10;
@@ -137,7 +141,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
             requestAnimationFrame(() => el.focus());
           }
         }}
-        value={qty}
+        value={qty === 0 ? "" : qty}
         onChange={(e) => setQty(parseFloat(e.target.value) || 0)}
         className="mb-3"
       />

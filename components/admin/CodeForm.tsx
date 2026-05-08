@@ -100,7 +100,7 @@ export function CodeForm({ onCreated }: { onCreated: () => void }) {
         id="admin-goal"
         type="number"
         inputMode="numeric"
-        value={goal}
+        value={goal === 0 ? "" : goal}
         onChange={(e) => setGoal(parseInt(e.target.value) || 0)}
         placeholder="Kalorijski cilj"
         className="mb-3"

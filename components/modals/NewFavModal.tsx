@@ -113,6 +113,10 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
 
   const confirmAdd = () => {
     if (!addFood) return;
+    if (!addQty || addQty <= 0) {
+      showToast("Količina mora biti veća od 0");
+      return;
+    }
     const m = macroForGrams(addFood, addQty);
     setItems((prev) => [
       ...prev,
@@ -145,6 +149,10 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
     }
     if (items.length === 0) {
       showToast("Obrok mora imati barem jednu namirnicu");
+      return;
+    }
+    if (items.some((it) => (it.pieces ?? it.grams) <= 0 || it.grams <= 0)) {
+      showToast("Količina svake namirnice mora biti veća od 0");
       return;
     }
     setSaving(true);
@@ -265,7 +273,10 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
               <input
                 type="number"
                 inputMode="decimal"
-                value={it.pieces !== null ? it.pieces : it.grams}
+                value={(() => {
+                  const v = it.pieces !== null ? it.pieces : it.grams;
+                  return v === 0 ? "" : v;
+                })()}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value) || 0;
                   if (it.pieces !== null) updatePieces(idx, val);
@@ -338,7 +349,7 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
               <Input
                 type="number"
                 inputMode="decimal"
-                value={addQty}
+                value={addQty === 0 ? "" : addQty}
                 onChange={(e) => setAddQty(parseFloat(e.target.value) || 0)}
                 className="mb-2"
               />

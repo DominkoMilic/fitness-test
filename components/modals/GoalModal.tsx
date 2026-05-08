@@ -49,21 +49,21 @@ export function GoalModal() {
       <Input
         type="number"
         inputMode="numeric"
-        value={val}
+        value={val === 0 ? "" : val}
         onChange={(e) => setVal(parseInt(e.target.value) || 0)}
         className="mb-4 text-2xl text-center tracking-widest"
       />
       <div className="flex gap-2.5">
         <button
           onClick={closeModal}
-          className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-[var(--color-bg)] text-[15px] font-semibold"
+          className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-bg text-[15px] font-semibold"
           style={{ color: "var(--color-muted)" }}
         >
           Odustani
         </button>
         <button
           onClick={onSave}
-          className="flex-[2] py-3.5 rounded-xl bg-gradient-to-br from-[#1b3255] to-[#162844] text-white text-[15px] font-bold"
+          className="flex-2 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[15px] font-bold"
         >
           Spremi
         </button>
