@@ -4,15 +4,15 @@
 
 export const PRIVACY_OPERATOR = {
   // Naziv tvrtke / obrta / fizičke osobe koja je voditelj obrade.
-  companyName: "TODO_COMPANY_NAME",
+  companyName: "Bird Of Prey d.o.o.",
   // OIB voditelja obrade.
-  oib: "TODO_OIB",
+  oib: "17978132687",
   // Adresa sjedišta.
-  address: "TODO_ADDRESS",
+  address: "Šibenik (Grad Šibenik), Put Gvozdenova 253",
   // Kontakt e-mail za privatnost / GDPR upite.
-  contactEmail: "TODO_CONTACT_EMAIL",
+  contactEmail: "birdofpreydoo@gmail.com",
   // (Opcionalno) Kontakt telefon.
-  contactPhone: "TODO_CONTACT_PHONE",
+  contactPhone: "+385 95 527 5554",
 } as const;
 
 export const PRIVACY_LAST_UPDATED = new Date("2026-05-07");
@@ -38,11 +38,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     title: "2. Voditelj obrade osobnih podataka",
     paragraphs: [
       `Voditelj obrade je ${PRIVACY_OPERATOR.companyName}, OIB: ${PRIVACY_OPERATOR.oib}, sjedište: ${PRIVACY_OPERATOR.address}.`,
-      `Za sva pitanja vezana uz obradu osobnih podataka možete nas kontaktirati na e-mail: ${PRIVACY_OPERATOR.contactEmail}${
-        PRIVACY_OPERATOR.contactPhone && PRIVACY_OPERATOR.contactPhone !== "TODO_CONTACT_PHONE"
-          ? `, telefon: ${PRIVACY_OPERATOR.contactPhone}`
-          : ""
-      }.`,
+      `Za sva pitanja vezana uz obradu osobnih podataka možete nas kontaktirati na e-mail: ${PRIVACY_OPERATOR.contactEmail}${`, telefon: ${PRIVACY_OPERATOR.contactPhone}`}.`,
     ],
   },
   {
@@ -102,9 +98,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
   {
     id: "prava",
     title: "8. Vaša prava",
-    paragraphs: [
-      "U skladu s GDPR-om imate sljedeća prava:",
-    ],
+    paragraphs: ["U skladu s GDPR-om imate sljedeća prava:"],
     bullets: [
       "Pravo na pristup vlastitim podacima.",
       "Pravo na ispravak netočnih ili nepotpunih podataka.",
