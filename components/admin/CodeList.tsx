@@ -151,7 +151,7 @@ function CodeListInner({ refreshKey }: { refreshKey: number }) {
             onClick={() => setFilter("active")}
           />
           <FilterTab
-            label={`Deaktivirani (${deactivatedCodes.length})`}
+            label={`Istekli kodovi (${deactivatedCodes.length})`}
             active={filter === "deactivated"}
             onClick={() => setFilter("deactivated")}
           />
@@ -172,7 +172,7 @@ function CodeListInner({ refreshKey }: { refreshKey: number }) {
           <EmptyText>
             {filter === "active"
               ? "Nema aktivnih korisnika."
-              : "Nema deaktiviranih korisnika."}
+              : "Nema korisnika s isteklim kodovima."}
           </EmptyText>
         )}
         {codes !== null && filteredCodes.length > 0 && sorted.length === 0 && (
@@ -246,10 +246,7 @@ function FilterTab({
 
 function EmptyText({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="text-[13px] py-2"
-      style={{ color: "var(--color-muted)" }}
-    >
+    <div className="text-[13px] py-2" style={{ color: "var(--color-muted)" }}>
       {children}
     </div>
   );
