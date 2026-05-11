@@ -41,7 +41,17 @@ export type Database = {
         Relationships: [];
       };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      bump_streak: {
+        Args: {
+          p_user_id: string;
+        };
+        Returns: {
+          current_streak: number | null;
+          last_upload_date: string | null;
+        }[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

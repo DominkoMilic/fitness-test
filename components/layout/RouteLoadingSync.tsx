@@ -6,11 +6,22 @@ import { useUIStore } from "@/store/useUIStore";
 export function RouteLoadingSync() {
   const pathname = usePathname();
   const setLoading = useUIStore((s) => s.setLoading);
+  const closeModal = useUIStore((s) => s.closeModal);
 
   useEffect(() => {
+    closeModal();
     const done = setTimeout(() => setLoading(false), 140);
     return () => clearTimeout(done);
-  }, [pathname, setLoading]);
+  }, [pathname, closeModal, setLoading]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      closeModal();
+      setLoading(false);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [closeModal, setLoading]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
