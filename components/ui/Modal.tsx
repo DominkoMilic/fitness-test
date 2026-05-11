@@ -1,5 +1,11 @@
 "use client";
-import { KeyboardEvent, MouseEvent, ReactNode } from "react";
+import {
+  FocusEvent,
+  KeyboardEvent,
+  MouseEvent,
+  ReactNode,
+  useRef,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 type Props = {
@@ -10,12 +16,32 @@ type Props = {
 };
 
 export function Modal({ open, onClose, children, className = "" }: Props) {
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+
   const onKeyDownCapture = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== "Enter") return;
     const target = e.target as EventTarget | null;
     if (target instanceof HTMLInputElement) {
       target.blur();
     }
+  };
+
+  const onFocusCapture = (e: FocusEvent<HTMLDivElement>) => {
+    const target = e.target as EventTarget | null;
+    if (
+      !(target instanceof HTMLInputElement) &&
+      !(target instanceof HTMLTextAreaElement) &&
+      !(target instanceof HTMLSelectElement)
+    ) {
+      return;
+    }
+
+    // Wait a bit for mobile keyboard animation, then center focused field.
+    setTimeout(() => {
+      const container = bodyRef.current;
+      if (!container || !target.isConnected) return;
+      target.scrollIntoView({ block: "center", inline: "nearest" });
+    }, 120);
   };
 
   return (
@@ -32,12 +58,15 @@ export function Modal({ open, onClose, children, className = "" }: Props) {
           transition={{ duration: 0.18, ease: "easeOut" }}
         >
           <motion.div
+            ref={bodyRef}
             className={`bg-white rounded-t-3xl w-full max-w-107.5 px-5 pt-6 relative max-h-[92dvh] overflow-y-auto overscroll-contain ${className}`}
             style={{
               paddingBottom: "calc(2rem + env(safe-area-inset-bottom))",
+              scrollPaddingBottom: "10rem",
             }}
             onClick={(e: MouseEvent) => e.stopPropagation()}
             onKeyDownCapture={onKeyDownCapture}
+            onFocusCapture={onFocusCapture}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
