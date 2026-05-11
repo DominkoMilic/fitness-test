@@ -1,5 +1,5 @@
 "use client";
-import { MouseEvent, ReactNode } from "react";
+import { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 type Props = {
@@ -10,6 +10,14 @@ type Props = {
 };
 
 export function Modal({ open, onClose, children, className = "" }: Props) {
+  const onKeyDownCapture = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Enter") return;
+    const target = e.target as EventTarget | null;
+    if (target instanceof HTMLInputElement) {
+      target.blur();
+    }
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -24,9 +32,12 @@ export function Modal({ open, onClose, children, className = "" }: Props) {
           transition={{ duration: 0.18, ease: "easeOut" }}
         >
           <motion.div
-            className={`bg-white rounded-t-3xl w-full max-w-107.5 px-5 pt-6 relative ${className}`}
-            style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
+            className={`bg-white rounded-t-3xl w-full max-w-107.5 px-5 pt-6 relative max-h-[92dvh] overflow-y-auto overscroll-contain ${className}`}
+            style={{
+              paddingBottom: "calc(2rem + env(safe-area-inset-bottom))",
+            }}
             onClick={(e: MouseEvent) => e.stopPropagation()}
+            onKeyDownCapture={onKeyDownCapture}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
