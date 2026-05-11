@@ -19,18 +19,23 @@ export default function AdminPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
-    if (isAdminAuthenticated()) {
-      setAuthed(true);
-    } else {
-      router.replace("/admin/login");
-    }
+    let cancelled = false;
+    (async () => {
+      const ok = await isAdminAuthenticated();
+      if (cancelled) return;
+      if (ok) setAuthed(true);
+      else router.replace("/admin/login");
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   if (!authed) return null;
 
-  const onLogout = () => {
+  const onLogout = async () => {
     setConfirmOpen(false);
-    clearAdminAuthenticated();
+    await clearAdminAuthenticated();
     router.replace("/admin/login");
   };
 

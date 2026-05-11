@@ -16,13 +16,20 @@ export default function AdminLoginPage() {
   const [err, setErr] = useState(false);
 
   useEffect(() => {
-    if (isAdminAuthenticated()) router.replace("/admin");
+    let cancelled = false;
+    (async () => {
+      const ok = await isAdminAuthenticated();
+      if (!cancelled && ok) router.replace("/admin");
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   const onSubmit = async () => {
     setErr(false);
     setBusy(true);
-    const ok = setAdminAuthenticated(password.trim());
+    const ok = await setAdminAuthenticated(password.trim());
     setBusy(false);
 
     if (ok) router.replace("/admin");

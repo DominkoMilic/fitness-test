@@ -57,7 +57,7 @@ export function BarcodeScanner({ open, onClose, onResult }: Props) {
         const controls = await reader.decodeFromConstraints(
           constraints,
           video,
-          async (result, err) => {
+          async (result) => {
             if (!result || busyRef.current || cancelled) return;
             busyRef.current = true;
             const code = result.getText();
