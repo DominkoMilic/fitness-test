@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
+import { bumpUploadStreak, bumpUploadStreaks } from "@/lib/api/streaks";
 import type { FoodLogInsert, FoodLogRow } from "@/types/database";
 
 export async function listLogs(
@@ -30,6 +31,8 @@ export async function insertLog(entry: FoodLogInsert) {
     .select()
     .single();
   if (error) throw error;
+  // Streak is non-critical — failure must not block the upload.
+  if (entry.user_id) void bumpUploadStreak(entry.user_id);
   return data;
 }
 
@@ -40,6 +43,7 @@ export async function insertLogs(entries: FoodLogInsert[]) {
     .insert(entries)
     .select();
   if (error) throw error;
+  void bumpUploadStreaks(entries.map((e) => e.user_id));
   return data ?? [];
 }
 

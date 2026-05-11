@@ -35,7 +35,12 @@ export type Database = {
         Relationships: [];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      user_activity_view: {
+        Row: UserActivityRow;
+        Relationships: [];
+      };
+    };
     Functions: Record<string, never>;
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
@@ -49,15 +54,41 @@ export type AccessCodeRow = {
   exp: string; // YYYY-MM-DD
   goal: number;
   cookies_accepted_at: string | null;
+  current_streak: number;
+  last_upload_at: string | null;
+  last_upload_date: string | null;
   created_at: string | null;
 };
 export type AccessCodeInsert = Omit<
   AccessCodeRow,
-  "id" | "created_at" | "cookies_accepted_at"
+  | "id"
+  | "created_at"
+  | "cookies_accepted_at"
+  | "current_streak"
+  | "last_upload_at"
+  | "last_upload_date"
 > & {
   id?: string;
   created_at?: string;
   cookies_accepted_at?: string | null;
+  current_streak?: number;
+  last_upload_at?: string | null;
+  last_upload_date?: string | null;
+};
+
+export type ActivityStatus = "active" | "yellow" | "red";
+
+export type UserActivityRow = {
+  id: string;
+  code: string;
+  name: string;
+  exp: string;
+  goal: number;
+  current_streak: number;
+  last_upload_at: string | null;
+  last_upload_date: string | null;
+  inactivity_days: number | null;
+  activity_status: ActivityStatus;
 };
 
 export type FoodRow = {

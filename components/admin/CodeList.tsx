@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { listCodes, deleteCode as apiDelete } from "@/lib/api/codes";
-import type { AccessCodeRow } from "@/types/database";
+import { deleteCode as apiDelete } from "@/lib/api/codes";
+import { listUserActivity } from "@/lib/api/userActivity";
+import type { ActivityStatus, UserActivityRow } from "@/types/database";
 import { useUIStore } from "@/store/useUIStore";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { todayISO } from "@/lib/utils/date";
@@ -41,9 +42,55 @@ function highlightMatch(text: string, query: string): ReactNode {
   );
 }
 
+const ROW_STYLE: Record<ActivityStatus, { row: string; icon: string }> = {
+  active: { row: "", icon: "" },
+  yellow: {
+    row: "bg-amber-50 border-amber-200 hover:bg-amber-100 active:bg-amber-200",
+    icon: "text-amber-600",
+  },
+  red: {
+    row: "bg-rose-50 border-rose-200 hover:bg-rose-100 active:bg-rose-200",
+    icon: "text-rose-600",
+  },
+};
+
+function WarningTriangle({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M12 2.5L1.5 21.5h21L12 2.5zM11 10h2v5h-2v-5zm0 7h2v2h-2v-2z"
+      />
+    </svg>
+  );
+}
+
+function FlameIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      width={12}
+      height={12}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M13.5 0.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73S7.32 7.53 7.32 5.47l.03-.36C5.35 7.5 4 10.79 4 14.34a8 8 0 0 0 16 0c0-4.34-2.09-8.21-5.05-10.93l-1.45-2.74z" />
+    </svg>
+  );
+}
+
 export function CodeList({ refreshKey }: { refreshKey: number }) {
   const router = useRouter();
-  const [codes, setCodes] = useState<AccessCodeRow[] | null>(null);
+  const [codes, setCodes] = useState<UserActivityRow[] | null>(null);
   const [filter, setFilter] = useState<UserFilter>("active");
   const [query, setQuery] = useState("");
   const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(
@@ -61,7 +108,7 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
     : filteredCodes.filter((c) => c.code.toLowerCase().includes(q));
 
   const refresh = useCallback(async () => {
-    setCodes(await listCodes());
+    setCodes(await listUserActivity());
   }, []);
 
   useEffect(() => {
@@ -157,42 +204,69 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
               Nema rezultata za "{query}".
             </div>
           )}
-        {visibleCodes.map((c) => (
-          <div
-            key={c.code}
-            onClick={() =>
-              router.push(
-                `/admin/users/${encodeURIComponent(c.code)}/dashboard`,
-              )
-            }
-            className="kf-row flex items-center justify-between py-2.5 px-2 -mx-2 rounded-lg border-b border-border last:border-b-0 cursor-pointer"
-          >
-            <div>
-              <span
-                className="bg-indigo-50 rounded px-2 py-1 font-extrabold font-mono text-[13px]"
-                style={{ color: "var(--color-navy)" }}
-              >
-                {highlightMatch(c.code, query)}
-              </span>
-              <div
-                className="text-[11px] mt-1"
-                style={{ color: "var(--color-muted)" }}
-              >
-                {c.name} · do {formatExpireDateHR(c.exp)} · {c.goal} kcal
+        {visibleCodes.map((c) => {
+          const style = ROW_STYLE[c.activity_status];
+          const showWarning =
+            c.activity_status === "yellow" || c.activity_status === "red";
+          return (
+            <div
+              key={c.code}
+              onClick={() =>
+                router.push(
+                  `/admin/users/${encodeURIComponent(c.code)}/dashboard`,
+                )
+              }
+              className={`kf-row flex items-center justify-between gap-2 py-2.5 px-2 -mx-2 rounded-lg border last:mb-0 mb-1 cursor-pointer ${
+                style.row || "border-transparent border-b-border"
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {showWarning && (
+                  <WarningTriangle className={`shrink-0 ${style.icon}`} />
+                )}
+                <div className="min-w-0">
+                  <span
+                    className="bg-indigo-50 rounded px-2 py-1 font-extrabold font-mono text-[13px]"
+                    style={{ color: "var(--color-navy)" }}
+                  >
+                    {highlightMatch(c.code, query)}
+                  </span>
+                  <div
+                    className="text-[11px] mt-1"
+                    style={{ color: "var(--color-muted)" }}
+                  >
+                    {c.name} · do {formatExpireDateHR(c.exp)} · {c.goal} kcal
+                    {c.inactivity_days != null && c.inactivity_days >= 2 && (
+                      <span className={`ml-1 font-semibold ${style.icon}`}>
+                        · {c.inactivity_days}d neaktivnosti
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span
+                  className="inline-flex items-center gap-0.5 text-[12px] font-bold"
+                  style={{ color: "var(--color-orange)" }}
+                  title={`Niz: ${c.current_streak} dan${c.current_streak === 1 ? "" : "a"}`}
+                >
+                  <FlameIcon />
+                  {c.current_streak}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPendingDeleteCode(c.code);
+                  }}
+                  aria-label="Obriši"
+                  className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center"
+                >
+                  ×
+                </button>
               </div>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setPendingDeleteCode(c.code);
-              }}
-              aria-label="Obriši"
-              className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center"
-            >
-              ×
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <ConfirmPopup
         open={pendingDeleteCode !== null}
