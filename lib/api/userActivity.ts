@@ -1,4 +1,3 @@
-import { supabase } from "@/lib/supabase/client";
 import type { ActivityStatus, UserActivityRow } from "@/types/database";
 
 export type SortKey =
@@ -16,14 +15,24 @@ const STATUS_RANK: Record<ActivityStatus, number> = {
 
 /**
  * Read all users with their computed activity / streak data.
- * Status is computed server-side by `user_activity_view`.
+ * Status is computed server-side by `user_activity_view`. Admin-only —
+ * fetched via /api/admin/user-activity which validates the admin cookie.
  */
 export async function listUserActivity(): Promise<UserActivityRow[]> {
-  const { data, error } = await supabase
-    .from("user_activity_view")
-    .select("*");
-  if (error) throw error;
-  return (data ?? []) as UserActivityRow[];
+  const res = await fetch("/api/admin/user-activity", {
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(body?.error || `Request failed: ${res.status}`);
+  }
+  const body = (await res.json().catch(() => null)) as
+    | { data: UserActivityRow[] }
+    | null;
+  return body?.data ?? [];
 }
 
 /** Pure client-side sort — view returns small admin-sized datasets. */

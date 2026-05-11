@@ -19,18 +19,19 @@ export default function AdminUserFavoritesPage() {
   const [filter, setFilter] = useState<MealFilter>("sve");
 
   useEffect(() => {
-    if (!isAdminAuthenticated()) {
-      router.replace("/admin/login");
-      return;
-    }
-
     let alive = true;
-    getCodeByValue(code).then((row) => {
+    (async () => {
+      const authed = await isAdminAuthenticated();
+      if (!alive) return;
+      if (!authed) {
+        router.replace("/admin/login");
+        return;
+      }
+      const row = await getCodeByValue(code);
       if (!alive) return;
       setUser(row);
       setLoadingUser(false);
-    });
-
+    })();
     return () => {
       alive = false;
     };

@@ -138,18 +138,10 @@ export async function deleteMissingImportedFoods(
   keepNames: string[],
   keepRowIds: string[],
 ): Promise<SheetSyncApplyResult> {
-  const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD?.trim();
-
-  if (!adminPassword) {
-    throw new Error("Nedostaje NEXT_PUBLIC_ADMIN_PASSWORD za admin sync");
-  }
-
   const res = await fetch("/api/admin/sheet-sync", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-password": adminPassword,
-    },
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ foods, keepNames, keepRowIds }),
   });
 
