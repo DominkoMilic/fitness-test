@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/utils/requireAdmin";
 import type { FoodInsert } from "@/types/database";
 
 type SyncBody = {
@@ -14,23 +15,12 @@ const normalizeName = (value: string) =>
 const normalizeRowId = (value: string | null | undefined) =>
   (value || "").trim().toLowerCase();
 
-function getExpectedAdminPassword() {
-  return (
-    process.env.ADMIN_PASSWORD?.trim() ||
-    process.env.NEXT_PUBLIC_ADMIN_PASSWORD?.trim() ||
-    ""
-  );
-}
-
 export async function POST(req: Request) {
+  const guard = await requireAdmin();
+  if (guard) return guard;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const expectedPassword = getExpectedAdminPassword();
-    const providedPassword = req.headers.get("x-admin-password")?.trim() || "";
-
-    if (!expectedPassword || providedPassword !== expectedPassword) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const body = (await req.json()) as SyncBody;
     const foods = Array.isArray(body.foods) ? body.foods : [];

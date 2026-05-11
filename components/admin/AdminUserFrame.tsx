@@ -48,7 +48,7 @@ export function AdminUserFrame({
     if (!user || !expDraft) return;
     setSaving(true);
     try {
-      await updateCodeExpiry(user.id, expDraft);
+      await updateCodeExpiry(user.code, expDraft);
       setDisplayExp(expDraft);
       setEditOpen(false);
       showToast("Datum isteka je ažuriran");
