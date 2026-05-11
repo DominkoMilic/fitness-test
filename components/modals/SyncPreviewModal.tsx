@@ -1,20 +1,11 @@
 "use client";
 import { Modal } from "@/components/ui/Modal";
 import { useUIStore } from "@/store/useUIStore";
-import {
-  clearFoodsCache,
-  deleteMissingImportedFoods,
-  type MissingImportedFood,
-} from "@/lib/api/foods";
-import type { FoodInsert } from "@/types/database";
+import { applySheetSyncPlan } from "@/lib/api/sheetSync";
+import { clearFoodsCache } from "@/lib/api/foods";
+import type { SheetSyncPlan } from "@/types/sheetSync";
 
-type Payload = {
-  foods: FoodInsert[];
-  keepNames: string[];
-  keepRowIds: string[];
-  removeCount?: number;
-  foodsToDelete?: MissingImportedFood[];
-};
+type Payload = { plan: SheetSyncPlan };
 
 export function SyncPreviewModal({ onDone }: { onDone?: () => void }) {
   const modal = useUIStore((s) => s.modal);
@@ -23,65 +14,48 @@ export function SyncPreviewModal({ onDone }: { onDone?: () => void }) {
   const showToast = useUIStore((s) => s.showToast);
   const setLoading = useUIStore((s) => s.setLoading);
 
-  if (modal !== "syncPreview" || !payload) return null;
-  const foods = payload.foods;
-  const keepNames = payload.keepNames ?? [];
-  const keepRowIds = payload.keepRowIds ?? [];
-  const foodsToDelete = payload.foodsToDelete ?? [];
-  const removeCount = payload.removeCount ?? foodsToDelete.length;
-  const hasChanges = foods.length > 0 || removeCount > 0;
+  if (modal !== "syncPreview" || !payload?.plan) return null;
+
+  const { toInsert, toUpdate, toDelete, unchangedCount, duplicates } =
+    payload.plan;
+  const hasChanges = toInsert.length + toUpdate.length + toDelete.length > 0;
+  const dupCount = duplicates?.length ?? 0;
 
   const onConfirm = async () => {
     setLoading(true);
     try {
-      if (
-        !Array.isArray(payload.keepNames) ||
-        !Array.isArray(payload.keepRowIds)
-      ) {
-        showToast("Greška sinka: nedostaje snapshot Sheeta");
-        return;
-      }
-      const {
-        inserted,
-        insertFail,
-        deleted,
-        deleteFail,
-        deletedNames,
-        failedNames,
-        removedLogCount,
-      } = await deleteMissingImportedFoods(foods, keepNames, keepRowIds);
+      const result = await applySheetSyncPlan(payload.plan);
       clearFoodsCache();
       try {
         localStorage.setItem("kf_last_sync", new Date().toISOString());
       } catch {}
       closeModal();
-      if (
-        inserted === 0 &&
-        insertFail > 0 &&
-        deleted === 0 &&
-        deleteFail === 0
-      ) {
-        showToast("Sink nije uspio — provjeri podatke i jedinstvenost unosa");
-      } else if (insertFail === 0 && deleteFail === 0) {
-        showToast(
-          `Sink: dodano ${inserted}, obrisano ${deleted}, maknuto ${removedLogCount} logova`,
-        );
-      } else {
-        showToast(
-          `Sink: dodano ${inserted}, obrisano ${deleted}, maknuto ${removedLogCount} logova, neuspješno ${insertFail + deleteFail}`,
-        );
-      }
-      if (deletedNames.length) {
-        showToast(`Obrisano iz appa: ${deletedNames.join(", ")}`);
-      } else if (failedNames.length) {
-        showToast(`Nije obrisano: ${failedNames.join(", ")}`);
+
+      const failed =
+        result.insertFail + result.updateFail + result.deleteFail;
+      const summary =
+        `Sink — dodano ${result.inserted}, ` +
+        `ažurirano ${result.updated}, ` +
+        `obrisano ${result.deleted}` +
+        (result.renamedLogCount
+          ? `, preimenovano ${result.renamedLogCount} logova`
+          : "") +
+        (result.removedLogCount
+          ? `, maknuto ${result.removedLogCount} logova`
+          : "") +
+        (failed ? `, neuspješno ${failed}` : "");
+
+      showToast(summary);
+
+      if (result.failedNames.length) {
+        showToast(`Nije obrađeno: ${result.failedNames.join(", ")}`);
       }
       onDone?.();
     } catch (error) {
       showToast(
         error instanceof Error
           ? error.message
-          : "Sync nije uspio. Provjeri admin postavke i pokušaj ponovno.",
+          : "Sync nije uspio. Pokušaj ponovno.",
       );
     } finally {
       setLoading(false);
@@ -98,66 +72,62 @@ export function SyncPreviewModal({ onDone }: { onDone?: () => void }) {
       </div>
       <div className="text-[13px] mb-4" style={{ color: "var(--color-muted)" }}>
         {!hasChanges
-          ? "Nema promjena za sinkronizaciju."
-          : `Za dodavanje: ${foods.length} · Za brisanje: ${removeCount}`}
+          ? `Nema promjena za sinkronizaciju. Bez promjene: ${unchangedCount}.`
+          : `Dodaj: ${toInsert.length} · Ažuriraj: ${toUpdate.length} · Obriši: ${toDelete.length} · Bez promjene: ${unchangedCount}`}
       </div>
+
       <div className="overflow-y-auto flex-1 mb-4 max-h-[50vh]">
-        {foods.length > 0 && (
-          <>
-            <div
-              className="px-3.5 py-2 text-[11px] font-bold uppercase tracking-wider border-b border-border"
-              style={{ color: "var(--color-muted)" }}
-            >
-              Za dodavanje
-            </div>
-            {foods.map((f, idx) => {
+        {toInsert.length > 0 && (
+          <Section title="Za dodavanje">
+            {toInsert.map((f, idx) => {
               const piece =
                 f.piece_name && f.piece_weight_g
                   ? ` · 1 ${f.piece_name} = ${f.piece_weight_g}g`
                   : "";
               return (
-                <div
+                <Row
                   key={`add_${idx}`}
-                  className="flex items-center justify-between py-1.5 px-3.5 border-b border-border last:border-b-0"
-                >
-                  <div className="text-xs font-semibold">{f.name}</div>
-                  <div
-                    className="text-[11px]"
-                    style={{ color: "var(--color-muted)" }}
-                  >
-                    {f.kcal_per_100g} kcal · P:{f.protein}g · U:{f.carbs}g · M:
-                    {f.fat}g{piece}
-                  </div>
-                </div>
+                  primary={f.name}
+                  secondary={`${f.kcal_per_100g} kcal · P:${f.protein}g · U:${f.carbs}g · M:${f.fat}g${piece}`}
+                />
               );
             })}
-          </>
+          </Section>
         )}
-        {foodsToDelete.length > 0 && (
-          <>
-            <div
-              className="px-3.5 py-2 text-[11px] font-bold uppercase tracking-wider border-b border-border"
-              style={{ color: "var(--color-muted)" }}
-            >
-              Za brisanje iz appa i dnevnika
-            </div>
-            {foodsToDelete.map((food) => (
-              <div
-                key={`delete_${food.id}`}
-                className="flex items-center justify-between py-2 px-3.5 border-b border-border last:border-b-0"
-              >
-                <div className="text-xs font-semibold">{food.name}</div>
-                <div
-                  className="text-[11px] font-semibold"
-                  style={{ color: "var(--color-orange-dark, #c86a1a)" }}
-                >
-                  Briše se
-                </div>
-              </div>
+
+        {toUpdate.length > 0 && (
+          <Section title="Za ažuriranje">
+            {toUpdate.map((u) => {
+              const fields = Object.keys(u.patch);
+              const label = u.nameChanged
+                ? `${u.oldName} → ${u.newName}`
+                : u.newName;
+              return (
+                <Row
+                  key={`upd_${u.id}`}
+                  primary={label}
+                  secondary={`Polja: ${fields.join(", ")}`}
+                  accent="info"
+                />
+              );
+            })}
+          </Section>
+        )}
+
+        {toDelete.length > 0 && (
+          <Section title="Za brisanje iz appa i dnevnika">
+            {toDelete.map((d) => (
+              <Row
+                key={`del_${d.id}`}
+                primary={d.name}
+                secondary="Briše se"
+                accent="warn"
+              />
             ))}
-          </>
+          </Section>
         )}
       </div>
+
       <div className="flex gap-2.5">
         <button
           onClick={closeModal}
@@ -176,5 +146,53 @@ export function SyncPreviewModal({ onDone }: { onDone?: () => void }) {
         )}
       </div>
     </Modal>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <div
+        className="px-3.5 py-2 text-[11px] font-bold uppercase tracking-wider border-b border-border"
+        style={{ color: "var(--color-muted)" }}
+      >
+        {title}
+      </div>
+      {children}
+    </>
+  );
+}
+
+function Row({
+  primary,
+  secondary,
+  accent,
+}: {
+  primary: string;
+  secondary: string;
+  accent?: "info" | "warn";
+}) {
+  const accentColor =
+    accent === "warn"
+      ? "var(--color-orange-dark, #c86a1a)"
+      : accent === "info"
+        ? "var(--color-navy)"
+        : "var(--color-muted)";
+  return (
+    <div className="flex items-center justify-between py-1.5 px-3.5 border-b border-border last:border-b-0 gap-3">
+      <div className="text-xs font-semibold truncate">{primary}</div>
+      <div
+        className="text-[11px] font-semibold shrink-0"
+        style={{ color: accentColor }}
+      >
+        {secondary}
+      </div>
+    </div>
   );
 }
