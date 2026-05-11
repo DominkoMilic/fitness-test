@@ -2,6 +2,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
+// Portal wrapper to render dropdown outside modal scroll container
+function DropdownPortal({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
 const MAX_PANEL_HEIGHT_PX = 288; // matches Tailwind max-h-72
 
 export type DropdownOption<T extends string> = {
@@ -26,8 +31,7 @@ type Props<T extends string> = {
 };
 
 const TRIGGER_STYLES: Record<Variant, string> = {
-  pill:
-    "text-[11px] font-bold uppercase tracking-wider rounded-full bg-linear-to-br from-white to-bg pl-3 pr-2.5 py-1.5 border-[1.5px] border-border hover:border-orange/60 focus-visible:border-orange shadow-sm",
+  pill: "text-[11px] font-bold uppercase tracking-wider rounded-full bg-linear-to-br from-white to-bg pl-3 pr-2.5 py-1.5 border-[1.5px] border-border hover:border-orange/60 focus-visible:border-orange shadow-sm",
   input:
     "text-[15px] font-semibold rounded-xl bg-white px-3.5 py-3 border-[1.5px] border-border hover:border-orange/60 focus-visible:border-orange",
 };
@@ -52,19 +56,47 @@ export function Dropdown<T extends string>({
   const [openUp, setOpenUp] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [panelPos, setPanelPos] = useState<{
+    top: string;
+    left: string;
+    width: string;
+  } | null>(null);
 
   const current = options.find((o) => o.value === value);
 
-  // Decide whether the panel should open above the trigger based on
-  // available viewport space below. Runs synchronously before paint to
-  // avoid a flicker on first open.
+  // Position dropdown panel in viewport (not relative to modal)
+  // to prevent it from being clipped by modal overflow
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
-    setOpenUp(spaceBelow < MAX_PANEL_HEIGHT_PX && spaceAbove > spaceBelow);
-  }, [open]);
+    const panelHeight = Math.min(MAX_PANEL_HEIGHT_PX, options.length * 44);
+    const shouldOpenUp = spaceBelow < panelHeight && spaceAbove > spaceBelow;
+
+    const panelTop = shouldOpenUp
+      ? Math.max(16, rect.top - panelHeight - 8)
+      : rect.bottom + 8;
+    const panelWidth = fullWidth ? rect.width : Math.max(180, rect.width);
+    const panelLeft = Math.max(
+      8,
+      Math.min(
+        window.innerWidth - panelWidth - 8,
+        fullWidth
+          ? rect.left
+          : align === "right"
+            ? rect.right - panelWidth
+            : rect.left,
+      ),
+    );
+
+    setPanelPos({
+      top: `${panelTop}px`,
+      left: `${panelLeft}px`,
+      width: `${panelWidth}px`,
+    });
+    setOpenUp(shouldOpenUp);
+  }, [open, align, fullWidth, options.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -119,18 +151,19 @@ export function Dropdown<T extends string>({
       </button>
 
       <AnimatePresence>
-        {open && (
+        {open && panelPos && (
           <motion.ul
             role="listbox"
             initial={{ opacity: 0, y: openUp ? 4 : -4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: openUp ? 4 : -4, scale: 0.98 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
-            className={`absolute z-50 min-w-45 max-h-72 overflow-y-auto rounded-2xl border border-border bg-white shadow-xl py-1 ${
-              openUp ? "bottom-full mb-1.5" : "top-full mt-1.5"
-            } ${
-              fullWidth ? "left-0 right-0" : align === "right" ? "right-0" : "left-0"
-            }`}
+            className="fixed z-50 min-w-45 max-h-72 overflow-y-auto rounded-2xl border border-border bg-white shadow-xl py-1"
+            style={{
+              top: panelPos.top,
+              left: panelPos.left,
+              width: panelPos.width,
+            }}
           >
             {options.map((opt) => {
               const active = opt.value === value;
