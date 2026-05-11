@@ -1,10 +1,11 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthStore } from "@/store/useAuthStore";
-import { MEAL_KEYS, MEAL_NAMES } from "@/lib/constants/meals";
+import { MEAL_OPTIONS } from "@/lib/constants/meals";
 import { createFavorite } from "@/lib/api/favorites";
 import { useFoods } from "@/hooks/useFoods";
 import { macroForGrams } from "@/lib/utils/macros";
@@ -234,17 +235,15 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
       >
         Obrok
       </div>
-      <Select
+      <Dropdown
         value={meal}
-        onChange={(e) => setMeal(e.target.value as MealKey)}
-        className="mb-4"
-      >
-        {MEAL_KEYS.map((k) => (
-          <option key={k} value={k}>
-            {MEAL_NAMES[k]}
-          </option>
-        ))}
-      </Select>
+        onChange={setMeal}
+        options={MEAL_OPTIONS}
+        variant="input"
+        fullWidth
+        wrapperClassName="mb-4"
+        ariaLabel="Obrok"
+      />
 
       <div
         className="text-[11px] font-bold uppercase tracking-wider mb-2"

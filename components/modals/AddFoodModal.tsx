@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useDayStore } from "@/store/useDayStore";
@@ -11,7 +12,7 @@ import {
   getPieceInfo,
   macroForGrams,
 } from "@/lib/utils/macros";
-import { MEAL_KEYS, MEAL_NAMES } from "@/lib/constants/meals";
+import { MEAL_NAMES, MEAL_OPTIONS } from "@/lib/constants/meals";
 import { insertLog } from "@/lib/api/foodLogs";
 import { pushSearchHistory } from "@/lib/api/searchHistory";
 import type { FoodEntry } from "@/types/app";
@@ -188,17 +189,15 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
           >
             Obrok
           </div>
-          <Select
+          <Dropdown
             value={meal}
-            onChange={(e) => setMeal(e.target.value as MealKey)}
-            className="mb-4"
-          >
-            {MEAL_KEYS.map((k) => (
-              <option key={k} value={k}>
-                {MEAL_NAMES[k]}
-              </option>
-            ))}
-          </Select>
+            onChange={setMeal}
+            options={MEAL_OPTIONS}
+            variant="input"
+            fullWidth
+            wrapperClassName="mb-4"
+            ariaLabel="Obrok"
+          />
         </>
       )}
       <div className="flex gap-2.5">

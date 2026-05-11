@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Select } from "@/components/ui/Input";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useDayStore } from "@/store/useDayStore";
-import { MEAL_KEYS, MEAL_NAMES } from "@/lib/constants/meals";
+import { MEAL_NAMES, MEAL_OPTIONS } from "@/lib/constants/meals";
 import { dateForOffset } from "@/lib/utils/date";
 import { insertLogs } from "@/lib/api/foodLogs";
 import type { FavoriteRow, MealKey } from "@/types/database";
@@ -67,17 +67,15 @@ export function AddFavModal({ onAdded }: { onAdded?: () => void }) {
       >
         U koji obrok?
       </div>
-      <Select
+      <Dropdown
         value={target}
-        onChange={(e) => setTarget(e.target.value as MealKey)}
-        className="mb-4"
-      >
-        {MEAL_KEYS.map((k) => (
-          <option key={k} value={k}>
-            {MEAL_NAMES[k]}
-          </option>
-        ))}
-      </Select>
+        onChange={setTarget}
+        options={MEAL_OPTIONS}
+        variant="input"
+        fullWidth
+        wrapperClassName="mb-4"
+        ariaLabel="Obrok"
+      />
       <div className="flex gap-2.5">
         <button
           onClick={closeModal}
