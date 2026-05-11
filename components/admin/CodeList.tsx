@@ -1,130 +1,64 @@
 "use client";
-import { useEffect, useState, useCallback, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { deleteCode as apiDelete } from "@/lib/api/codes";
 import { listUserActivity } from "@/lib/api/userActivity";
-import type { ActivityStatus, UserActivityRow } from "@/types/database";
+import type { UserActivityRow } from "@/types/database";
 import { useUIStore } from "@/store/useUIStore";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
-import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
+import { Dropdown } from "@/components/ui/Dropdown";
+import { Pagination } from "@/components/ui/Pagination";
 import { todayISO } from "@/lib/utils/date";
+import { useIsClientMounted } from "@/hooks/useIsClientMounted";
+import { CodeRow } from "./CodeRow";
+import {
+  ACTIVITY_SORT_OPTIONS,
+  PAGE_SIZE,
+  SCROLL_KEY,
+  readPersistedState,
+  sortByActivity,
+  writePersistedState,
+  type ActivitySort,
+  type UserFilter,
+} from "./codeListUtils";
 
-type UserFilter = "active" | "deactivated";
-
-function formatExpireDateHR(value: string) {
-  const [year, month, day] = value.split("-");
-  if (!year || !month || !day) return value;
-  return `${Number(day)}.${Number(month)}.${year}.`;
+export function CodeList(props: { refreshKey: number }) {
+  // Render nothing during SSR so the inner component's useState lazy
+  // initializers — which read sessionStorage — run only on the client.
+  // Otherwise React reuses the server-rendered state (where sessionStorage
+  // is unavailable) and persisted state is lost.
+  const mounted = useIsClientMounted();
+  if (!mounted) return null;
+  return <CodeListInner {...props} />;
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function highlightMatch(text: string, query: string): ReactNode {
-  const q = query.trim();
-  if (!q) return text;
-
-  const rx = new RegExp(`(${escapeRegExp(q)})`, "ig");
-  const parts = text.split(rx);
-
-  return parts.map((part, idx) =>
-    part.toLowerCase() === q.toLowerCase() ? (
-      <mark
-        key={`${part}-${idx}`}
-        className="px-0.5 rounded bg-orange/20"
-        style={{ color: "var(--color-navy)" }}
-      >
-        {part}
-      </mark>
-    ) : (
-      <span key={`${part}-${idx}`}>{part}</span>
-    ),
-  );
-}
-
-const ROW_STYLE: Record<ActivityStatus, { row: string; icon: string }> = {
-  active: { row: "", icon: "" },
-  yellow: {
-    row: "bg-amber-50 border-amber-200 hover:bg-amber-100 active:bg-amber-200",
-    icon: "text-amber-600",
-  },
-  red: {
-    row: "bg-rose-50 border-rose-200 hover:bg-rose-100 active:bg-rose-200",
-    icon: "text-rose-600",
-  },
-};
-
-function WarningTriangle({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      width={16}
-      height={16}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M12 2.5L1.5 21.5h21L12 2.5zM11 10h2v5h-2v-5zm0 7h2v2h-2v-2z"
-      />
-    </svg>
-  );
-}
-
-function FlameIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      width={12}
-      height={12}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M13.5 0.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73S7.32 7.53 7.32 5.47l.03-.36C5.35 7.5 4 10.79 4 14.34a8 8 0 0 0 16 0c0-4.34-2.09-8.21-5.05-10.93l-1.45-2.74z" />
-    </svg>
-  );
-}
-
-type ActivitySort = "most" | "least";
-
-const ACTIVITY_SORT_OPTIONS: readonly DropdownOption<ActivitySort>[] = [
-  { value: "most", label: "Najaktivniji" },
-  { value: "least", label: "Najmanje aktivni" },
-];
-
-function inactivityScore(c: UserActivityRow): number {
-  // null last_upload → treat as highest inactivity.
-  if (c.inactivity_days == null) return Number.POSITIVE_INFINITY;
-  return c.inactivity_days;
-}
-
-function sortByActivity(rows: UserActivityRow[], dir: ActivitySort) {
-  const factor = dir === "most" ? 1 : -1;
-  return [...rows].sort((a, b) => {
-    const av = inactivityScore(a);
-    const bv = inactivityScore(b);
-    if (av !== bv) return (av - bv) * factor;
-    // Tie-breaker: higher streak first when "most" active, reverse otherwise.
-    return (b.current_streak - a.current_streak) * factor;
-  });
-}
-
-export function CodeList({ refreshKey }: { refreshKey: number }) {
-  const router = useRouter();
+function CodeListInner({ refreshKey }: { refreshKey: number }) {
   const [codes, setCodes] = useState<UserActivityRow[] | null>(null);
-  const [filter, setFilter] = useState<UserFilter>("active");
-  const [activitySort, setActivitySort] = useState<ActivitySort>("most");
-  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<UserFilter>(
+    () => readPersistedState().filter ?? "active",
+  );
+  const [activitySort, setActivitySort] = useState<ActivitySort>(
+    () => readPersistedState().sort ?? "most",
+  );
+  const [query, setQuery] = useState<string>(
+    () => readPersistedState().query ?? "",
+  );
+  const [page, setPage] = useState<number>(
+    () => readPersistedState().page ?? 1,
+  );
   const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(
     null,
   );
+  const skipFirstReset = useRef(true);
+  const scrollRestored = useRef(false);
   const showToast = useUIStore((s) => s.showToast);
-  const today = todayISO();
 
+  const today = todayISO();
   const activeCodes = (codes ?? []).filter((c) => c.exp >= today);
   const deactivatedCodes = (codes ?? []).filter((c) => c.exp < today);
   const filteredCodes = filter === "active" ? activeCodes : deactivatedCodes;
@@ -132,15 +66,57 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
   const searched = !q
     ? filteredCodes
     : filteredCodes.filter((c) => c.code.toLowerCase().includes(q));
-  const visibleCodes = sortByActivity(searched, activitySort);
+  const sorted = sortByActivity(searched, activitySort);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  // Clamp the page if data shrinks. Done during render so we don't need an
+  // effect — and the initial render (codes=null) doesn't stomp hydrated page.
+  if (codes !== null && page > totalPages) setPage(totalPages);
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const visibleCodes = sorted.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // Reset to page 1 when the underlying view changes — but skip the first run
+  // so the page restored from sessionStorage survives mount.
+  useEffect(() => {
+    if (skipFirstReset.current) {
+      skipFirstReset.current = false;
+      return;
+    }
+    setPage(1);
+  }, [filter, activitySort, query]);
+
+  // Persist current view for round-trips to user pages.
+  useEffect(() => {
+    writePersistedState({ page, filter, sort: activitySort, query });
+  }, [page, filter, activitySort, query]);
+
+  // Restore window scroll once codes are present in the DOM.
+  useLayoutEffect(() => {
+    if (scrollRestored.current || codes === null) return;
+    if (typeof window === "undefined") return;
+    const raw = sessionStorage.getItem(SCROLL_KEY);
+    if (raw) {
+      const y = Number(raw);
+      if (Number.isFinite(y)) window.scrollTo({ top: y });
+      sessionStorage.removeItem(SCROLL_KEY);
+    }
+    scrollRestored.current = true;
+  }, [codes]);
 
   const refresh = useCallback(async () => {
     setCodes(await listUserActivity());
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh, refreshKey]);
+    let cancelled = false;
+    (async () => {
+      const rows = await listUserActivity();
+      if (!cancelled) setCodes(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
 
   const onDelete = async () => {
     if (!pendingDeleteCode) return;
@@ -167,34 +143,20 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
             ariaLabel="Sortiraj po aktivnosti"
           />
         </div>
+
         <div className="flex gap-1.5 mb-3 overflow-x-auto">
-          <button
+          <FilterTab
+            label={`Aktivni (${activeCodes.length})`}
+            active={filter === "active"}
             onClick={() => setFilter("active")}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border-[1.5px] ${
-              filter === "active"
-                ? "border-navy bg-navy text-white"
-                : "border-border bg-white"
-            }`}
-            style={{
-              color: filter === "active" ? "#fff" : "var(--color-muted)",
-            }}
-          >
-            Aktivni ({activeCodes.length})
-          </button>
-          <button
+          />
+          <FilterTab
+            label={`Deaktivirani (${deactivatedCodes.length})`}
+            active={filter === "deactivated"}
             onClick={() => setFilter("deactivated")}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border-[1.5px] ${
-              filter === "deactivated"
-                ? "border-navy bg-navy text-white"
-                : "border-border bg-white"
-            }`}
-            style={{
-              color: filter === "deactivated" ? "#fff" : "var(--color-muted)",
-            }}
-          >
-            Deaktivirani ({deactivatedCodes.length})
-          </button>
+          />
         </div>
+
         <div className="mb-3">
           <input
             value={query}
@@ -203,106 +165,40 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
             className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold outline-none border-[1.5px] border-border focus:border-orange text-navy"
           />
         </div>
-        {codes === null && (
-          <div
-            className="text-[13px] py-2"
-            style={{ color: "var(--color-muted)" }}
-          >
-            Učitavam...
-          </div>
-        )}
-        {codes?.length === 0 && (
-          <div
-            className="text-[13px] py-2"
-            style={{ color: "var(--color-muted)" }}
-          >
-            Nema kodova.
-          </div>
-        )}
+
+        {codes === null && <EmptyText>Učitavam...</EmptyText>}
+        {codes?.length === 0 && <EmptyText>Nema kodova.</EmptyText>}
         {codes !== null && filteredCodes.length === 0 && (
-          <div
-            className="text-[13px] py-2"
-            style={{ color: "var(--color-muted)" }}
-          >
+          <EmptyText>
             {filter === "active"
               ? "Nema aktivnih korisnika."
               : "Nema deaktiviranih korisnika."}
-          </div>
+          </EmptyText>
         )}
-        {codes !== null &&
-          filteredCodes.length > 0 &&
-          visibleCodes.length === 0 && (
-            <div
-              className="text-[13px] py-2"
-              style={{ color: "var(--color-muted)" }}
-            >
-              Nema rezultata za "{query}".
-            </div>
-          )}
-        {visibleCodes.map((c) => {
-          const style = ROW_STYLE[c.activity_status];
-          const showWarning =
-            c.activity_status === "yellow" || c.activity_status === "red";
-          return (
-            <div
-              key={c.code}
-              onClick={() =>
-                router.push(
-                  `/admin/users/${encodeURIComponent(c.code)}/dashboard`,
-                )
-              }
-              className={`kf-row flex items-center justify-between gap-2 py-2.5 px-2 -mx-2 rounded-lg border last:mb-0 mb-1 cursor-pointer ${
-                style.row || "border-transparent border-b-border"
-              }`}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                {showWarning && (
-                  <WarningTriangle className={`shrink-0 ${style.icon}`} />
-                )}
-                <div className="min-w-0">
-                  <span
-                    className="bg-indigo-50 rounded px-2 py-1 font-extrabold font-mono text-[13px]"
-                    style={{ color: "var(--color-navy)" }}
-                  >
-                    {highlightMatch(c.code, query)}
-                  </span>
-                  <div
-                    className="text-[11px] mt-1"
-                    style={{ color: "var(--color-muted)" }}
-                  >
-                    {c.name} · do {formatExpireDateHR(c.exp)} · {c.goal} kcal
-                    {c.inactivity_days != null && c.inactivity_days >= 2 && (
-                      <span className={`ml-1 font-semibold ${style.icon}`}>
-                        · {c.inactivity_days}d neaktivnosti
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <span
-                  className="inline-flex items-center gap-0.5 text-[12px] font-bold"
-                  style={{ color: "var(--color-orange)" }}
-                  title={`Niz: ${c.current_streak} dan${c.current_streak === 1 ? "" : "a"}`}
-                >
-                  <FlameIcon />
-                  {c.current_streak}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPendingDeleteCode(c.code);
-                  }}
-                  aria-label="Obriši"
-                  className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        {codes !== null && filteredCodes.length > 0 && sorted.length === 0 && (
+          <EmptyText>Nema rezultata za &quot;{query}&quot;.</EmptyText>
+        )}
+
+        {visibleCodes.map((c) => (
+          <CodeRow
+            key={c.code}
+            row={c}
+            query={query}
+            onDelete={setPendingDeleteCode}
+          />
+        ))}
+
+        {sorted.length > PAGE_SIZE && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={sorted.length}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
+        )}
       </div>
+
       <ConfirmPopup
         open={pendingDeleteCode !== null}
         question={
@@ -323,5 +219,38 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
         }}
       />
     </>
+  );
+}
+
+function FilterTab({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border-[1.5px] ${
+        active ? "border-navy bg-navy text-white" : "border-border bg-white"
+      }`}
+      style={{ color: active ? "#fff" : "var(--color-muted)" }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function EmptyText({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="text-[13px] py-2"
+      style={{ color: "var(--color-muted)" }}
+    >
+      {children}
+    </div>
   );
 }
