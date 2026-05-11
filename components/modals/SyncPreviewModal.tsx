@@ -76,6 +76,38 @@ export function SyncPreviewModal({ onDone }: { onDone?: () => void }) {
           : `Dodaj: ${toInsert.length} · Ažuriraj: ${toUpdate.length} · Obriši: ${toDelete.length} · Bez promjene: ${unchangedCount}`}
       </div>
 
+      {dupCount > 0 && (
+        <div
+          className="mb-4 rounded-xl border px-3.5 py-3"
+          style={{
+            borderColor: "var(--color-orange-dark, #c86a1a)",
+            background: "rgba(200,106,26,0.08)",
+            color: "var(--color-navy)",
+          }}
+        >
+          <div className="text-[12px] font-extrabold mb-1.5">
+            ⚠️ Duplikati u Sheetu ({dupCount})
+          </div>
+          <div
+            className="text-[12px] mb-2 leading-snug"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Sinkronizacija koristi prvi pronađeni redak. Očisti duplikate u
+            Sheetu kako bi sigurno znao koji je &quot;pravi&quot;.
+          </div>
+          <ul className="text-[12px] leading-snug list-disc pl-4 space-y-0.5">
+            {duplicates.map((d, i) => (
+              <li key={`dup_${i}`}>
+                <span className="font-semibold">{d.name}</span>
+                {d.sheetRowId ? ` (id: ${d.sheetRowId})` : ""}
+                {" — "}
+                {d.reason === "name" ? "isti naziv" : "isti sheet_row_id"}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="overflow-y-auto flex-1 mb-4 max-h-[50vh]">
         {toInsert.length > 0 && (
           <Section title="Za dodavanje">
