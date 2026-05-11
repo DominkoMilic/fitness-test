@@ -6,8 +6,7 @@ export const ADMIN_COOKIE_TTL = 60 * 60 * 24 * 7; // 7 days
 function getSecret(): string {
   const secret =
     process.env.ADMIN_SESSION_SECRET?.trim() ||
-    process.env.ADMIN_PASSWORD?.trim() ||
-    process.env.NEXT_PUBLIC_ADMIN_PASSWORD?.trim();
+    process.env.ADMIN_PASSWORD?.trim();
   if (!secret) {
     throw new Error(
       "Missing ADMIN_SESSION_SECRET (or ADMIN_PASSWORD) — set one in .env.local",

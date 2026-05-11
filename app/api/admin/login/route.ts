@@ -7,11 +7,7 @@ import {
 } from "@/lib/utils/adminSession";
 
 function getExpectedPassword(): string {
-  return (
-    process.env.ADMIN_PASSWORD?.trim() ||
-    process.env.NEXT_PUBLIC_ADMIN_PASSWORD?.trim() ||
-    ""
-  );
+  return process.env.ADMIN_PASSWORD?.trim() || "";
 }
 
 function timingSafeEqual(a: string, b: string): boolean {
