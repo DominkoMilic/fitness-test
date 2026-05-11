@@ -65,7 +65,7 @@ export function formatExpireDateHR(value: string): string {
 // Pagination / persistence
 // -----------------------------------------------------------------------------
 
-export const PAGE_SIZE = 5;
+export const PAGE_SIZE = 20;
 
 const STATE_KEY = "kf_admin_list_state";
 export const SCROLL_KEY = "kf_admin_list_scroll";
