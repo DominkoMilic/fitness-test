@@ -6,6 +6,7 @@ import { listUserActivity } from "@/lib/api/userActivity";
 import type { ActivityStatus, UserActivityRow } from "@/types/database";
 import { useUIStore } from "@/store/useUIStore";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
+import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { todayISO } from "@/lib/utils/date";
 
 type UserFilter = "active" | "deactivated";
@@ -88,10 +89,35 @@ function FlameIcon({ className = "" }: { className?: string }) {
   );
 }
 
+type ActivitySort = "most" | "least";
+
+const ACTIVITY_SORT_OPTIONS: readonly DropdownOption<ActivitySort>[] = [
+  { value: "most", label: "Najaktivniji" },
+  { value: "least", label: "Najmanje aktivni" },
+];
+
+function inactivityScore(c: UserActivityRow): number {
+  // null last_upload → treat as highest inactivity.
+  if (c.inactivity_days == null) return Number.POSITIVE_INFINITY;
+  return c.inactivity_days;
+}
+
+function sortByActivity(rows: UserActivityRow[], dir: ActivitySort) {
+  const factor = dir === "most" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const av = inactivityScore(a);
+    const bv = inactivityScore(b);
+    if (av !== bv) return (av - bv) * factor;
+    // Tie-breaker: higher streak first when "most" active, reverse otherwise.
+    return (b.current_streak - a.current_streak) * factor;
+  });
+}
+
 export function CodeList({ refreshKey }: { refreshKey: number }) {
   const router = useRouter();
   const [codes, setCodes] = useState<UserActivityRow[] | null>(null);
   const [filter, setFilter] = useState<UserFilter>("active");
+  const [activitySort, setActivitySort] = useState<ActivitySort>("most");
   const [query, setQuery] = useState("");
   const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(
     null,
@@ -103,9 +129,10 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
   const deactivatedCodes = (codes ?? []).filter((c) => c.exp < today);
   const filteredCodes = filter === "active" ? activeCodes : deactivatedCodes;
   const q = query.trim().toLowerCase();
-  const visibleCodes = !q
+  const searched = !q
     ? filteredCodes
     : filteredCodes.filter((c) => c.code.toLowerCase().includes(q));
+  const visibleCodes = sortByActivity(searched, activitySort);
 
   const refresh = useCallback(async () => {
     setCodes(await listUserActivity());
@@ -126,11 +153,19 @@ export function CodeList({ refreshKey }: { refreshKey: number }) {
   return (
     <>
       <div className="kf-card bg-white rounded-2xl border border-border p-5">
-        <div
-          className="text-sm font-extrabold mb-4"
-          style={{ color: "var(--color-navy)" }}
-        >
-          Korisnici
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div
+            className="text-sm font-extrabold"
+            style={{ color: "var(--color-navy)" }}
+          >
+            Korisnici
+          </div>
+          <Dropdown
+            value={activitySort}
+            onChange={setActivitySort}
+            options={ACTIVITY_SORT_OPTIONS}
+            ariaLabel="Sortiraj po aktivnosti"
+          />
         </div>
         <div className="flex gap-1.5 mb-3 overflow-x-auto">
           <button
