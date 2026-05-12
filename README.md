@@ -19,6 +19,7 @@ npm run dev
 | `SUPABASE_SERVICE_ROLE_KEY`     | server-side admin sync insert/delete access |
 | `ADMIN_PASSWORD`                | server-side admin gate (httpOnly cookie)    |
 | `ADMIN_SESSION_SECRET`          | HMAC key for admin session cookie           |
+| `USER_SESSION_SECRET`           | HMAC key for user session cookie            |
 | `NEXT_PUBLIC_SYNC_SHEET_ID`     | Google Sheet ID for foods sync              |
 | `NEXT_PUBLIC_SYNC_SHEET_GID`    | gid of the sheet tab                        |
 
