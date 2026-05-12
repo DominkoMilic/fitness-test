@@ -1,32 +1,27 @@
-import { supabase } from "@/lib/supabase/client";
-import { todayISO } from "@/lib/utils/date";
 import type { AccessCodeInsert, AccessCodeRow } from "@/types/database";
 
-// ----- User-side operations (anon Supabase client) -------------------------
+// ----- User-side operations (server-mediated via httpOnly session cookie) ----
 
-export async function loginWithCode(
-  code: string,
-): Promise<AccessCodeRow | null> {
-  const today = todayISO();
-  const { data, error } = await supabase
-    .from("codes")
-    .select("*")
-    .eq("code", code)
-    .gte("exp", today)
-    .limit(1);
-  if (error || !data?.length) return null;
-  return data[0];
+export async function updateGoal(_userId: string, goal: number) {
+  const res = await fetch("/api/me/profile/goal", {
+    method: "PATCH",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ goal }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(body?.error || "Goal update failed");
+  }
 }
 
-export async function updateGoal(userId: string, goal: number) {
-  await supabase.from("codes").update({ goal }).eq("id", userId);
-}
-
-export async function recordCookieAck(userId: string) {
-  await supabase
-    .from("codes")
-    .update({ cookies_accepted_at: new Date().toISOString() })
-    .eq("id", userId);
+export async function recordCookieAck(_userId: string) {
+  await fetch("/api/me/profile/cookie-ack", {
+    method: "POST",
+    credentials: "same-origin",
+  });
 }
 
 // ----- Admin-only operations (server-validated cookie via API routes) ------

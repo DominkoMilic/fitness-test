@@ -1,42 +1,61 @@
-import { supabase } from "@/lib/supabase/client";
+// Client wrapper around /api/me/favorites/* and /api/admin/users/[code]/favorites.
+// `userId` parameters are informational; the server derives user identity
+// from the httpOnly session cookie.
+
 import type { FavoriteInsert, FavoriteRow } from "@/types/database";
 
-export async function listFavorites(userId: string): Promise<FavoriteRow[]> {
-  const { data } = await supabase
-    .from("favorites")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  return data ?? [];
+async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, {
+    ...init,
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(body?.error || `Request failed: ${res.status}`);
+  }
+  return (await res.json()) as T;
 }
 
-export async function createFavorite(fav: FavoriteInsert) {
-  const { data, error } = await supabase
-    .from("favorites")
-    .insert(fav)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+export async function listFavorites(_userId: string): Promise<FavoriteRow[]> {
+  const body = await jsonFetch<{ data: FavoriteRow[] }>("/api/me/favorites");
+  return body.data ?? [];
 }
 
-export async function deleteFavorite(id: number) {
-  await supabase.from("favorites").delete().eq("id", id);
+export async function listFavoritesAsAdmin(
+  code: string,
+): Promise<FavoriteRow[]> {
+  const body = await jsonFetch<{ data: FavoriteRow[] }>(
+    `/api/admin/users/${encodeURIComponent(code)}/favorites`,
+  );
+  return body.data ?? [];
+}
+
+export async function createFavorite(fav: FavoriteInsert): Promise<FavoriteRow> {
+  const body = await jsonFetch<{ data: FavoriteRow }>("/api/me/favorites", {
+    method: "POST",
+    body: JSON.stringify(fav),
+  });
+  return body.data;
+}
+
+export async function deleteFavorite(id: number): Promise<void> {
+  await jsonFetch(`/api/me/favorites/${id}`, { method: "DELETE" });
 }
 
 export async function updateFavorite(
   id: number,
-  userId: string | undefined,
+  _userId: string | undefined,
   patch: Partial<Omit<FavoriteInsert, "user_id">>,
-) {
-  let query = supabase.from("favorites").update(patch).eq("id", id);
-  if (userId) query = query.eq("user_id", userId);
-  const { data, error } = await query.select();
-  if (error) throw error;
-  if (!data || data.length === 0) {
-    throw new Error(
-      "Spremanje nije uspjelo (0 redaka ažurirano — provjeri RLS / vlasništvo).",
-    );
-  }
-  return data[0] as FavoriteRow;
+): Promise<FavoriteRow> {
+  const body = await jsonFetch<{ data: FavoriteRow }>(
+    `/api/me/favorites/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return body.data;
 }

@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabase/client";
+// Client wrapper around /api/me/search-history. user_id derived from
+// session cookie server-side; passed-in userId is informational only.
 
 export type SearchHistoryRow = {
   user_id: string;
@@ -8,17 +9,31 @@ export type SearchHistoryRow = {
   last_searched_at: string;
 };
 
+async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, {
+    ...init,
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(body?.error || `Request failed: ${res.status}`);
+  }
+  return (await res.json()) as T;
+}
+
 export async function listSearchHistory(
-  userId: string,
+  _userId: string,
 ): Promise<SearchHistoryRow[]> {
-  const { data, error } = await supabase
-    .from("search_history")
-    .select("*")
-    .eq("user_id", userId)
-    .order("last_searched_at", { ascending: false })
-    .limit(15);
-  if (error) throw error;
-  return (data ?? []).map((r) => ({
+  const body = await jsonFetch<{ data: SearchHistoryRow[] }>(
+    "/api/me/search-history",
+  );
+  return (body.data ?? []).map((r) => ({
     user_id: String(r.user_id),
     food_id: Number(r.food_id),
     grams: Number(r.grams ?? 100),
@@ -28,37 +43,24 @@ export async function listSearchHistory(
 }
 
 export async function pushSearchHistory(
-  userId: string,
+  _userId: string,
   foodId: number,
   grams: number,
   pieces: number | null,
-) {
-  const { error } = await supabase.from("search_history").upsert(
-    {
-      user_id: userId,
-      food_id: foodId,
-      grams,
-      pieces,
-      last_searched_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,food_id" },
-  );
-  if (error) throw error;
+): Promise<void> {
+  await jsonFetch("/api/me/search-history", {
+    method: "POST",
+    body: JSON.stringify({ foodId, grams, pieces }),
+  });
 }
 
-export async function removeSearchHistoryItem(userId: string, foodId: number) {
-  const { error } = await supabase
-    .from("search_history")
-    .delete()
-    .eq("user_id", userId)
-    .eq("food_id", foodId);
-  if (error) throw error;
+export async function removeSearchHistoryItem(
+  _userId: string,
+  foodId: number,
+): Promise<void> {
+  await jsonFetch(`/api/me/search-history/${foodId}`, { method: "DELETE" });
 }
 
-export async function clearSearchHistory(userId: string) {
-  const { error } = await supabase
-    .from("search_history")
-    .delete()
-    .eq("user_id", userId);
-  if (error) throw error;
+export async function clearSearchHistory(_userId: string): Promise<void> {
+  await jsonFetch("/api/me/search-history", { method: "DELETE" });
 }

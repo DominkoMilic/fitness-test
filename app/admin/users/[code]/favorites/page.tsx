@@ -6,7 +6,7 @@ import { FavCard } from "@/components/favorites/FavCard";
 import { FavTabs } from "@/components/favorites/FavTabs";
 import { isAdminAuthenticated } from "@/lib/utils/adminAuth";
 import { getCodeByValue } from "@/lib/api/codes";
-import { useFavorites } from "@/hooks/useFavorites";
+import { useAdminUserFavorites } from "@/hooks/useAdminUserData";
 import type { MealFilter } from "@/types/app";
 import type { AccessCodeRow } from "@/types/database";
 
@@ -37,7 +37,7 @@ export default function AdminUserFavoritesPage() {
     };
   }, [code, router]);
 
-  const { favs } = useFavorites(user?.id);
+  const { favs } = useAdminUserFavorites(code);
   const list = filter === "sve" ? favs : favs.filter((f) => f.meal === filter);
 
   return (

@@ -8,7 +8,7 @@ import { MacroPills } from "@/components/dashboard/MacroPills";
 import { MealsList } from "@/components/dashboard/MealsList";
 import { isAdminAuthenticated } from "@/lib/utils/adminAuth";
 import { getCodeByValue } from "@/lib/api/codes";
-import { useFoodLogs } from "@/hooks/useFoodLogs";
+import { useAdminUserFoodLogs } from "@/hooks/useAdminUserData";
 import { dateForOffset } from "@/lib/utils/date";
 import { sumLogs } from "@/lib/utils/macros";
 import type { AccessCodeRow } from "@/types/database";
@@ -41,7 +41,7 @@ export default function AdminUserDashboardPage() {
   }, [code, router]);
 
   const date = useMemo(() => dateForOffset(offset), [offset]);
-  const { logs } = useFoodLogs(user?.id, date);
+  const { logs } = useAdminUserFoodLogs(code, date);
   const totals = sumLogs(logs);
   const goal = user?.goal ?? 1500;
 

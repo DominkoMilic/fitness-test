@@ -1,51 +1,41 @@
-import { supabase } from "@/lib/supabase/client";
+// Server-mediated streak bump. Replaces direct supabase.rpc("bump_streak").
+// The /api/me/logs and /api/me/logs/bulk routes already invoke the RPC
+// server-side when inserting, so most call sites no longer need to call
+// this fn. Kept for backwards compatibility + edge cases.
 
-/**
- * Result of the `bump_streak` RPC. `null` values mean the user_id was not
- * found server-side (we silently ignore — the upload still succeeded).
- */
 export type StreakBumpResult = {
   current_streak: number | null;
   last_upload_date: string | null;
 };
 
-/**
- * Increment the upload streak for a user.
- *
- * Idempotent within a calendar day (Europe/Zagreb): calling repeatedly the
- * same day does not inflate the streak. Safe to call on every upload.
- *
- * Errors are swallowed by default because the streak is observability data,
- * not part of the upload's critical path. Pass { rethrow: true } if you want
- * the caller to handle failures.
- */
 export async function bumpUploadStreak(
-  userId: string,
+  _userId: string,
   opts: { rethrow?: boolean } = {},
 ): Promise<StreakBumpResult | null> {
-  if (!userId) return null;
-  const { data, error } = await supabase.rpc("bump_streak", {
-    p_user_id: userId,
-  });
-  if (error) {
-    if (opts.rethrow) throw error;
-    if (typeof console !== "undefined") {
-      console.warn("bumpUploadStreak failed", error.message);
+  try {
+    const res = await fetch("/api/me/streak", {
+      method: "POST",
+      credentials: "same-origin",
+    });
+    if (!res.ok) {
+      if (opts.rethrow) {
+        const body = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(body?.error || `Streak bump failed: ${res.status}`);
+      }
+      return null;
     }
+    const body = (await res.json()) as { data: StreakBumpResult | null };
+    return body.data ?? null;
+  } catch (e) {
+    if (opts.rethrow) throw e;
     return null;
   }
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return null;
-  return {
-    current_streak:
-      typeof row.current_streak === "number" ? row.current_streak : null,
-    last_upload_date:
-      typeof row.last_upload_date === "string" ? row.last_upload_date : null,
-  };
 }
 
-/** Bump streaks for many users (e.g. bulk insert of favorite-meal items). */
 export async function bumpUploadStreaks(userIds: string[]) {
   const unique = Array.from(new Set(userIds.filter(Boolean)));
-  await Promise.all(unique.map((id) => bumpUploadStreak(id)));
+  // Server derives the actual user from cookie; we just need to fire once.
+  if (unique.length) await bumpUploadStreak(unique[0]);
 }

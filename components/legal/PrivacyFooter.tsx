@@ -40,6 +40,10 @@ export function PrivacyFooter({
         Pravila privatnosti
       </Link>
       <span aria-hidden="true">·</span>
+      <Link href="/postavke" className="underline hover:opacity-80">
+        Postavke
+      </Link>
+      <span aria-hidden="true">·</span>
       <button
         type="button"
         onClick={onCookiePrefs}
