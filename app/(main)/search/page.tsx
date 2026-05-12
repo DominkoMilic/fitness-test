@@ -122,17 +122,17 @@ export default function SearchPage() {
   return (
     <>
       <div
-        className="flex items-center gap-3 px-5 pt-4 pb-2"
+        className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 pt-4 pb-2"
         style={{ color: "var(--color-navy)" }}
       >
         <button
           onClick={() => router.push("/dashboard")}
           aria-label="Natrag na Danas"
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 active:bg-black/10 -ml-1"
+          className="justify-self-start inline-flex items-center gap-1.5 -ml-1.5 px-2.5 py-1.5 rounded-full text-sm font-bold hover:bg-black/5 active:bg-black/10"
         >
           <svg
-            width={20}
-            height={20}
+            width={18}
+            height={18}
             fill="none"
             stroke="currentColor"
             strokeWidth={2.25}
@@ -140,10 +140,12 @@ export default function SearchPage() {
           >
             <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
+          Natrag
         </button>
-        <span className="text-base font-extrabold">
-          Dodaj u: {MEAL_NAMES[presetMeal]}
+        <span className="text-base font-extrabold text-center">
+          Obrok: {MEAL_NAMES[presetMeal]}
         </span>
+        <span aria-hidden="true" />
       </div>
       <SearchBar value={q} onChange={setQ} onScan={() => setScan((v) => !v)} />
       <BarcodeScanner
