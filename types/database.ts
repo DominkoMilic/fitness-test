@@ -114,11 +114,16 @@ export type FoodRow = {
   status: "imported" | "new" | "archived";
   added_by: string | null;
   sheet_row_id: string | null;
+  has_extra_units: boolean;
   created_at: string;
 };
-export type FoodInsert = Omit<FoodRow, "id" | "created_at"> & {
+export type FoodInsert = Omit<
+  FoodRow,
+  "id" | "created_at" | "has_extra_units"
+> & {
   id?: number;
   created_at?: string;
+  has_extra_units?: boolean;
 };
 
 export type FoodLogRow = {

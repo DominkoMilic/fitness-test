@@ -9,6 +9,7 @@ export type FoodEntry = {
   m: number;
   piece_g?: number;
   piece_label?: string;
+  has_extra_units?: boolean;
 };
 
 export type PieceInfo = { g: number; label: string };

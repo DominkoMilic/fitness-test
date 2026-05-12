@@ -1,6 +1,15 @@
 import type { FoodEntry, PieceInfo } from "@/types/app";
 import type { FoodLogRow } from "@/types/database";
 import { PIECE_UNITS } from "@/lib/constants/pieces";
+import {
+  EXTRA_UNIT_G,
+  EXTRA_UNIT_FORMS,
+  EXTRA_UNITS_ORDERED,
+  type ExtraUnit,
+} from "@/lib/constants/extraUnits";
+import { croatianPlural } from "./croatianPlural";
+
+export type AmountUnit = "g" | "kom" | ExtraUnit;
 
 export function getPieceInfo(food: FoodEntry | null | undefined): PieceInfo | null {
   if (!food) return null;
@@ -10,9 +19,13 @@ export function getPieceInfo(food: FoodEntry | null | undefined): PieceInfo | nu
   return PIECE_UNITS[food.id as number] || null;
 }
 
+export function isExtraUnit(unit: AmountUnit): unit is ExtraUnit {
+  return unit === "salica" || unit === "jusna_zlica" || unit === "cajna_zlica";
+}
+
 export function effectiveGrams(
   inputValue: number,
-  unit: "g" | "kom",
+  unit: AmountUnit,
   food: FoodEntry | null,
   editPieceG: number | null,
 ): number {
@@ -20,8 +33,52 @@ export function effectiveGrams(
     if (editPieceG) return inputValue * editPieceG;
     const pu = getPieceInfo(food);
     if (pu) return inputValue * pu.g;
+    return inputValue;
+  }
+  if (isExtraUnit(unit)) {
+    return inputValue * EXTRA_UNIT_G[unit];
   }
   return inputValue;
+}
+
+/** "2 šalice", "1 čajna žlica", "3 jušne žlice" */
+export function formatExtraUnitAmount(count: number, unit: ExtraUnit): string {
+  const f = EXTRA_UNIT_FORMS[unit];
+  const noun = croatianPlural(count, f.singular, f.paucal, f.plural);
+  const num = Number.isInteger(count)
+    ? String(count)
+    : String(Math.round(count * 10) / 10);
+  return `${num} ${noun}`;
+}
+
+/**
+ * Given total grams and a food (which may have piece + extra-unit support),
+ * return a friendly amount label. Preference order:
+ *   1. pieces explicit (caller passes pieces non-null) → "X kom"
+ *   2. food has_extra_units → largest extra unit that divides cleanly
+ *   3. fallback → "Xg"
+ *
+ * Cleanly-divides means `grams / unit_g` is an integer (or half-step).
+ */
+export function describeAmount(
+  grams: number,
+  pieces: number | null,
+  food: FoodEntry | null | undefined,
+): string {
+  if (pieces != null) return `${pieces} kom`;
+
+  if (food?.has_extra_units) {
+    for (const u of EXTRA_UNITS_ORDERED) {
+      const g = EXTRA_UNIT_G[u];
+      const count = grams / g;
+      if (Math.abs(count - Math.round(count * 2) / 2) < 1e-6 && count >= 1) {
+        const rounded = Math.round(count * 2) / 2;
+        return formatExtraUnitAmount(rounded, u);
+      }
+    }
+  }
+
+  return `${Math.round(grams)} g`;
 }
 
 export function macroForGrams(food: FoodEntry, grams: number) {

@@ -63,6 +63,11 @@ const toNumOrNull = (v: string) => {
   return Number.isNaN(n) ? null : n;
 };
 
+const toBoolDa = (v: string): boolean =>
+  String(v || "")
+    .trim()
+    .toLowerCase() === "da";
+
 // ----- Types ---------------------------------------------------------------
 
 export type SheetParsedRow = {
@@ -135,6 +140,13 @@ export function parseSheet(rawCsv: string): SheetParsedRow[] {
         status: "imported",
         added_by: pickValue(row, ["Dodao", "Added by"]).trim() || null,
         sheet_row_id: sheetRowId,
+        has_extra_units: toBoolDa(
+          pickValue(row, [
+            "Dodatne količine",
+            "Dodatne kolicine",
+            "Extra units",
+          ]),
+        ),
       };
 
       return {
@@ -159,6 +171,7 @@ const DIFFABLE_KEYS = [
   "piece_weight_g",
   "added_by",
   "sheet_row_id",
+  "has_extra_units",
 ] as const;
 
 function valuesEqual(a: unknown, b: unknown): boolean {

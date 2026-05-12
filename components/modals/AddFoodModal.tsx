@@ -9,9 +9,18 @@ import { useDayStore } from "@/store/useDayStore";
 import { dateForOffset } from "@/lib/utils/date";
 import {
   effectiveGrams,
+  formatExtraUnitAmount,
   getPieceInfo,
+  isExtraUnit,
   macroForGrams,
+  type AmountUnit,
 } from "@/lib/utils/macros";
+import {
+  EXTRA_UNITS_ORDERED,
+  EXTRA_UNIT_FORMS,
+  EXTRA_UNIT_G,
+} from "@/lib/constants/extraUnits";
+import { croatianPlural } from "@/lib/utils/croatianPlural";
 import { MEAL_NAMES, MEAL_OPTIONS } from "@/lib/constants/meals";
 import { insertLog } from "@/lib/api/foodLogs";
 import { pushSearchHistory } from "@/lib/api/searchHistory";
@@ -25,6 +34,21 @@ type Payload = {
   defaultPieces?: number | null;
 };
 
+function defaultQtyForUnit(unit: AmountUnit): number {
+  if (unit === "g") return 100;
+  return 1;
+}
+
+function qtyLabelForUnit(unit: AmountUnit, qty: number): string {
+  if (unit === "g") return "Količina (g)";
+  if (unit === "kom") return "Broj komada";
+  const f = EXTRA_UNIT_FORMS[unit];
+  // Header reads "Broj <gen-plural>". For 0/empty input the generic plural
+  // form reads naturally.
+  const noun = croatianPlural(qty || 0, f.singular, f.paucal, f.plural);
+  return `Broj · ${noun}`;
+}
+
 export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
   const modal = useUIStore((s) => s.modal);
   const payload = useUIStore((s) => s.modalPayload as Payload | null);
@@ -33,14 +57,14 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
   const user = useAuthStore((s) => s.user);
   const offset = useDayStore((s) => s.offset);
 
-  const [unit, setUnit] = useState<"g" | "kom">("g");
+  const [unit, setUnit] = useState<AmountUnit>("g");
   const [qty, setQty] = useState<number>(100);
   const [meal, setMeal] = useState<MealKey>("dorucak");
   const [lastPayload, setLastPayload] = useState<Payload | null>(null);
 
   if (modal === "addFood" && payload && lastPayload !== payload) {
     setLastPayload(payload);
-    const initUnit: "g" | "kom" =
+    const initUnit: AmountUnit =
       payload.defaultPieces != null && payload.defaultPieces > 0 ? "kom" : "g";
     const initQty =
       initUnit === "kom"
@@ -56,12 +80,18 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
   if (modal !== "addFood" || !payload) return null;
   const food = payload.food;
   const piece = getPieceInfo(food);
+  const showExtras = Boolean(food.has_extra_units);
   const grams = effectiveGrams(qty || 0, unit, food, null);
   const macros = macroForGrams(food, grams);
 
-  const onUnitChange = (u: "g" | "kom") => {
+  // Build available unit list dynamically.
+  const units: AmountUnit[] = ["g"];
+  if (piece) units.push("kom");
+  if (showExtras) units.push(...EXTRA_UNITS_ORDERED);
+
+  const onUnitChange = (u: AmountUnit) => {
     setUnit(u);
-    setQty(u === "kom" ? 1 : 100);
+    setQty(defaultQtyForUnit(u));
   };
 
   const onConfirm = async () => {
@@ -95,6 +125,14 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
     onAdded?.();
   };
 
+  const unitButtonLabel = (u: AmountUnit): string => {
+    if (u === "g") return "Grami (g)";
+    if (u === "kom") return "Komadi (kom)";
+    const g = EXTRA_UNIT_G[u];
+    const f = EXTRA_UNIT_FORMS[u];
+    return `${f.singular[0].toUpperCase()}${f.singular.slice(1)} (${g}g)`;
+  };
+
   return (
     <Modal open onClose={closeModal}>
       <div
@@ -106,18 +144,22 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
       <div className="text-[13px] mb-5" style={{ color: "var(--color-muted)" }}>
         100g = {food.kcal} kcal
       </div>
-      {piece && (
-        <div className="flex bg-bg rounded-xl p-1 mb-4">
-          {(["g", "kom"] as const).map((u) => (
+      {units.length > 1 && (
+        <div className="grid gap-1.5 mb-4 bg-bg rounded-xl p-1"
+          style={{
+            gridTemplateColumns: `repeat(${Math.min(units.length, 3)}, minmax(0, 1fr))`,
+          }}
+        >
+          {units.map((u) => (
             <button
               key={u}
               onClick={() => onUnitChange(u)}
-              className={`flex-1 py-2 rounded-lg text-[13px] font-semibold ${unit === u ? "bg-white shadow" : ""}`}
+              className={`py-2 rounded-lg text-[12px] font-semibold ${unit === u ? "bg-white shadow" : ""}`}
               style={{
                 color: unit === u ? "var(--color-navy)" : "var(--color-muted)",
               }}
             >
-              {u === "g" ? "Grami (g)" : "Komadi (kom)"}
+              {unitButtonLabel(u)}
             </button>
           ))}
         </div>
@@ -126,7 +168,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
         className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
         style={{ color: "var(--color-muted)" }}
       >
-        {unit === "kom" ? "Broj komada" : "Količina (g)"}
+        {qtyLabelForUnit(unit, qty)}
       </div>
       <Input
         type="number"
@@ -152,6 +194,14 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
           style={{ color: "var(--color-muted)" }}
         >
           {piece.label}
+        </div>
+      )}
+      {isExtraUnit(unit) && qty > 0 && (
+        <div
+          className="text-xs text-center mb-3"
+          style={{ color: "var(--color-muted)" }}
+        >
+          {formatExtraUnitAmount(qty, unit)} ≈ {Math.round(grams)} g
         </div>
       )}
       <div className="flex justify-between items-center bg-linear-to-br from-blue-50 to-indigo-100 rounded-xl px-3.5 py-3 mb-4">

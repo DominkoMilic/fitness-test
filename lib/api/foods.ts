@@ -21,6 +21,7 @@ function rowToEntry(row: FoodRow): FoodEntry {
     e.piece_g = Number(row.piece_weight_g);
     e.piece_label = row.piece_name;
   }
+  if (row.has_extra_units) e.has_extra_units = true;
   return e;
 }
 

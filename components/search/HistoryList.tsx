@@ -1,4 +1,5 @@
 "use client";
+import { describeAmount } from "@/lib/utils/macros";
 import type { FoodEntry } from "@/types/app";
 
 export type HistoryListItem = {
@@ -53,8 +54,7 @@ export function HistoryList({
       </div>
       {items.map(({ food, grams, pieces }) => {
         const id = Number(food.id);
-        const amountLabel =
-          pieces != null ? `${pieces} kom` : `${Math.round(grams)} g`;
+        const amountLabel = describeAmount(grams, pieces, food);
         return (
           <div
             key={id}
