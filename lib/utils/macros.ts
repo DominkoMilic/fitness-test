@@ -4,7 +4,6 @@ import { PIECE_UNITS } from "@/lib/constants/pieces";
 import {
   EXTRA_UNIT_G,
   EXTRA_UNIT_FORMS,
-  EXTRA_UNITS_ORDERED,
   type ExtraUnit,
 } from "@/lib/constants/extraUnits";
 import { croatianPlural } from "./croatianPlural";
@@ -52,13 +51,13 @@ export function formatExtraUnitAmount(count: number, unit: ExtraUnit): string {
 }
 
 /**
- * Given total grams and a food (which may have piece + extra-unit support),
- * return a friendly amount label. Preference order:
+ * Given total grams and a food, return a friendly amount label. Preference:
  *   1. pieces explicit (caller passes pieces non-null) → "X kom"
- *   2. food has_extra_units → largest extra unit that divides cleanly
- *   3. fallback → "Xg"
+ *   2. food supports šalica (has_cup) and grams divides cleanly  → "X šalica"
+ *   3. food supports žlice (has_spoons) → largest matching spoon
+ *   4. fallback → "Xg"
  *
- * Cleanly-divides means `grams / unit_g` is an integer (or half-step).
+ * Cleanly-divides means `grams / unit_g` is an integer or half-step ≥ 1.
  */
 export function describeAmount(
   grams: number,
@@ -67,14 +66,16 @@ export function describeAmount(
 ): string {
   if (pieces != null) return `${pieces} kom`;
 
-  if (food?.has_extra_units) {
-    for (const u of EXTRA_UNITS_ORDERED) {
-      const g = EXTRA_UNIT_G[u];
-      const count = grams / g;
-      if (Math.abs(count - Math.round(count * 2) / 2) < 1e-6 && count >= 1) {
-        const rounded = Math.round(count * 2) / 2;
-        return formatExtraUnitAmount(rounded, u);
-      }
+  const candidates: ExtraUnit[] = [];
+  if (food?.has_cup) candidates.push("salica");
+  if (food?.has_spoons) candidates.push("jusna_zlica", "cajna_zlica");
+
+  for (const u of candidates) {
+    const g = EXTRA_UNIT_G[u];
+    const count = grams / g;
+    if (Math.abs(count - Math.round(count * 2) / 2) < 1e-6 && count >= 1) {
+      const rounded = Math.round(count * 2) / 2;
+      return formatExtraUnitAmount(rounded, u);
     }
   }
 

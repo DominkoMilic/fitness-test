@@ -16,9 +16,9 @@ import {
   type AmountUnit,
 } from "@/lib/utils/macros";
 import {
-  EXTRA_UNITS_ORDERED,
   EXTRA_UNIT_FORMS,
   EXTRA_UNIT_G,
+  type ExtraUnit,
 } from "@/lib/constants/extraUnits";
 import { croatianPlural } from "@/lib/utils/croatianPlural";
 import { MEAL_NAMES, MEAL_OPTIONS } from "@/lib/constants/meals";
@@ -80,14 +80,20 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
   if (modal !== "addFood" || !payload) return null;
   const food = payload.food;
   const piece = getPieceInfo(food);
-  const showExtras = Boolean(food.has_extra_units);
   const grams = effectiveGrams(qty || 0, unit, food, null);
   const macros = macroForGrams(food, grams);
 
   // Build available unit list dynamically.
+  // Sheet drives this via two columns:
+  //   Šalica → 1 šalica = 200 g
+  //   Žlice  → 1 jušna žlica = 16 g, 1 čajna žlica = 6 g
+  const extras: ExtraUnit[] = [];
+  if (food.has_cup) extras.push("salica");
+  if (food.has_spoons) extras.push("jusna_zlica", "cajna_zlica");
+
   const units: AmountUnit[] = ["g"];
   if (piece) units.push("kom");
-  if (showExtras) units.push(...EXTRA_UNITS_ORDERED);
+  units.push(...extras);
 
   const onUnitChange = (u: AmountUnit) => {
     setUnit(u);
@@ -145,16 +151,15 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
         100g = {food.kcal} kcal
       </div>
       {units.length > 1 && (
-        <div className="grid gap-1.5 mb-4 bg-bg rounded-xl p-1"
-          style={{
-            gridTemplateColumns: `repeat(${Math.min(units.length, 3)}, minmax(0, 1fr))`,
-          }}
+        <div
+          className="grid grid-cols-2 gap-1.5 mb-4 bg-bg rounded-xl p-1"
+          style={{ gridAutoRows: "minmax(3rem, auto)" }}
         >
           {units.map((u) => (
             <button
               key={u}
               onClick={() => onUnitChange(u)}
-              className={`py-2 rounded-lg text-[12px] font-semibold ${unit === u ? "bg-white shadow" : ""}`}
+              className={`flex items-center justify-center text-center px-2 rounded-lg text-[12px] font-semibold leading-tight ${unit === u ? "bg-white shadow" : ""}`}
               style={{
                 color: unit === u ? "var(--color-navy)" : "var(--color-muted)",
               }}

@@ -13,7 +13,11 @@ export const EXTRA_UNIT_G: Record<ExtraUnit, number> = {
 type Forms = { singular: string; paucal: string; plural: string };
 
 export const EXTRA_UNIT_FORMS: Record<ExtraUnit, Forms> = {
-  salica: { singular: "šalica", paucal: "šalice", plural: "šalica" },
+  salica: {
+    singular: "šalica / čaša",
+    paucal: "šalice / čaše",
+    plural: "šalica / čaša",
+  },
   jusna_zlica: {
     singular: "jušna žlica",
     paucal: "jušne žlice",

@@ -140,12 +140,9 @@ export function parseSheet(rawCsv: string): SheetParsedRow[] {
         status: "imported",
         added_by: pickValue(row, ["Dodao", "Added by"]).trim() || null,
         sheet_row_id: sheetRowId,
-        has_extra_units: toBoolDa(
-          pickValue(row, [
-            "Dodatne količine",
-            "Dodatne kolicine",
-            "Extra units",
-          ]),
+        has_cup: toBoolDa(pickValue(row, ["Šalica", "Salica", "Cup"])),
+        has_spoons: toBoolDa(
+          pickValue(row, ["Žlice", "Zlice", "Spoons"]),
         ),
       };
 
@@ -171,7 +168,8 @@ const DIFFABLE_KEYS = [
   "piece_weight_g",
   "added_by",
   "sheet_row_id",
-  "has_extra_units",
+  "has_cup",
+  "has_spoons",
 ] as const;
 
 function valuesEqual(a: unknown, b: unknown): boolean {
