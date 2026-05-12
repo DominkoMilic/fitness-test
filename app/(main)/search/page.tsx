@@ -101,7 +101,7 @@ export default function SearchPage() {
     const qty = unit === "kom" ? Number(entry.pieces) : entry.grams;
     const grams = effectiveGrams(qty || 0, unit, food, null);
     const macros = macroForGrams(food, grams);
-    showToast(`Dodano: ${food.name}`);
+    showToast(`${food.name} dodano u: ${MEAL_NAMES[presetMeal]}`);
     await insertLog({
       user_id: user.id,
       date: dateForOffset(offset),

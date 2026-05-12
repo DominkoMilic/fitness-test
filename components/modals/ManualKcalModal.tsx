@@ -48,7 +48,7 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
     const finalName = name.trim() || DEFAULT_NAME;
     const finalKcal = Math.round(kcal);
     closeModal();
-    showToast(`Dodano: ${finalName}`);
+    showToast(`${finalName} dodano u: ${MEAL_NAMES[meal]}`);
     try {
       await insertLog({
         user_id: user.id,

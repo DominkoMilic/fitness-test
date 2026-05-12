@@ -66,7 +66,7 @@ export const useUIStore = create<UIState>((set) => ({
     set({ toast: text });
     setTimeout(
       () => set((s) => (s.toast === text ? { toast: null } : s)),
-      2200,
+      4200,
     );
   },
   openModal: (kind, payload) =>

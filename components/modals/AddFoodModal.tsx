@@ -71,7 +71,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
       return;
     }
     closeModal();
-    showToast(`Dodano: ${food.name}`);
+    showToast(`${food.name} dodano u: ${MEAL_NAMES[meal]}`);
     const finalGrams = Math.round(grams * 10) / 10;
     const finalPieces = unit === "kom" ? qty : null;
     await insertLog({
