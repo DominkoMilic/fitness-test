@@ -26,5 +26,28 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dnevnik (Danas)",
+      "short_name": "Danas",
+      "description": "Otvori današnji unos kalorija",
+      "url": "/dashboard",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Pretraga namirnica",
+      "short_name": "Pretraga",
+      "description": "Pretraži bazu namirnica",
+      "url": "/search?meal=dorucak",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Omiljeni obroci",
+      "short_name": "Omiljeni",
+      "description": "Spremljeni omiljeni obroci",
+      "url": "/favorites",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ]
 }

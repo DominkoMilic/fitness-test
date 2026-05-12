@@ -1,4 +1,4 @@
-const SW_VERSION = "v3";
+const SW_VERSION = "v4";
 const APP_SHELL_CACHE = `kf-app-shell-${SW_VERSION}`;
 const PAGES_CACHE = `kf-pages-${SW_VERSION}`;
 const STATIC_CACHE = `kf-static-${SW_VERSION}`;
@@ -20,6 +20,7 @@ const SHOULD_SKIP_CACHE = [
   "/rest/v1/",
   "/auth/v1/",
   "/storage/v1/",
+  "/api/",
 ];
 
 function isCacheableResponse(response) {

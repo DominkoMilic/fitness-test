@@ -1,9 +1,14 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUIStore } from "@/store/useUIStore";
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -11,6 +16,44 @@ export default function SettingsPage() {
   const setLoading = useUIStore((s) => s.setLoading);
   const user = useAuthStore((s) => s.user);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as { standalone?: boolean }).standalone === true;
+    if (isStandalone) {
+      setInstalled(true);
+      return;
+    }
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    const onInstalled = () => {
+      setInstalled(true);
+      setInstallPrompt(null);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  const onInstall = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === "accepted") {
+      setInstalled(true);
+    }
+    setInstallPrompt(null);
+  };
 
   const onExport = async () => {
     setLoading(true);
@@ -81,6 +124,40 @@ export default function SettingsPage() {
       >
         {user ? `Račun: ${user.name} (${user.code})` : null}
       </div>
+
+      <Section title="Instalacija">
+        {installed ? (
+          <p
+            className="text-[13px] leading-snug"
+            style={{ color: "var(--color-muted)" }}
+          >
+            App je već instalirana na ovom uređaju.
+          </p>
+        ) : installPrompt ? (
+          <>
+            <p
+              className="text-[13px] mb-3 leading-snug"
+              style={{ color: "var(--color-muted)" }}
+            >
+              Instaliraj app na početni zaslon za brži pristup i offline rad.
+            </p>
+            <button
+              onClick={onInstall}
+              className="w-full py-3 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[14px] font-bold"
+            >
+              Instaliraj app
+            </button>
+          </>
+        ) : (
+          <p
+            className="text-[13px] leading-snug"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Otvori app preko preglednika koji podržava instalaciju (Chrome,
+            Edge, Safari). Na iOS-u: Share → &quot;Add to Home Screen&quot;.
+          </p>
+        )}
+      </Section>
 
       <Section title="Moji podaci (GDPR)">
         <p

@@ -33,8 +33,9 @@ export const metadata: Metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Allow user zoom (WCAG 2.1 + clients 40+ may need it).
+  maximumScale: 5,
+  userScalable: true,
   themeColor: "#1b3255",
 };
 
