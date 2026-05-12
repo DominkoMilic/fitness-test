@@ -14,7 +14,8 @@ export type ModalKind =
   | "addFav"
   | "editFav"
   | "newFav"
-  | "syncPreview";
+  | "syncPreview"
+  | "manualKcal";
 
 type UIState = {
   loading: boolean;
