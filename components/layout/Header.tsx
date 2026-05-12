@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useDayStore } from "@/store/useDayStore";
@@ -31,7 +32,11 @@ export function Header() {
         }}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <Link
+            href="/dashboard"
+            aria-label="Otvori Danas"
+            className="flex items-center gap-2.5 rounded-lg -mx-1 px-1 py-0.5 hover:bg-white/5 active:bg-white/10"
+          >
             <div className="w-10 h-10 rounded-md overflow-hidden bg-white/10 flex items-center justify-center">
               <Image
                 src="/icon-512.png"
@@ -53,7 +58,7 @@ export function Header() {
                 {headerDate}
               </div>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-2">
             <button
               onClick={() => openModal("goal")}
