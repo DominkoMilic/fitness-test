@@ -7,12 +7,16 @@ type Props = {
   className?: string;
   variant?: "fixed" | "inline";
   style?: React.CSSProperties;
+  /** Show the "Postavke" link. Only enable in authenticated user contexts;
+   * leave off for admin pages and unauthenticated login screens. */
+  showSettings?: boolean;
 };
 
 export function PrivacyFooter({
   className = "",
   variant = "inline",
   style,
+  showSettings = false,
 }: Props) {
   useEffect(() => {
     // No-op; ensures CC module is loaded before showPreferences is called.
@@ -40,10 +44,14 @@ export function PrivacyFooter({
         Pravila privatnosti
       </Link>
       <span aria-hidden="true">·</span>
-      <Link href="/postavke" className="underline hover:opacity-80">
-        Postavke
-      </Link>
-      <span aria-hidden="true">·</span>
+      {showSettings && (
+        <>
+          <Link href="/postavke" className="underline hover:opacity-80">
+            Postavke
+          </Link>
+          <span aria-hidden="true">·</span>
+        </>
+      )}
       <button
         type="button"
         onClick={onCookiePrefs}

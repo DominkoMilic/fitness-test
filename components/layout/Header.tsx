@@ -84,6 +84,7 @@ export function Header() {
         <PrivacyFooter
           className="py-0! mt-1"
           style={{ color: "rgba(255,255,255,0.65)" }}
+          showSettings
         />
       </header>
       <ConfirmPopup
