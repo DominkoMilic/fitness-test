@@ -178,16 +178,9 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
       <Input
         type="number"
         inputMode="decimal"
-        autoFocus={
-          payload.defaultGrams != null || payload.defaultPieces != null
-        }
+        autoFocus
         ref={(el) => {
-          if (
-            el &&
-            (payload.defaultGrams != null || payload.defaultPieces != null)
-          ) {
-            requestAnimationFrame(() => el.focus());
-          }
+          if (el) requestAnimationFrame(() => el.focus());
         }}
         value={qty === 0 ? "" : qty}
         onChange={(e) => setQty(parseFloat(e.target.value) || 0)}
