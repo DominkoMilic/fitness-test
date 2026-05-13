@@ -1,6 +1,35 @@
 "use client";
 import { useUIStore } from "@/store/useUIStore";
 
+type InlineLoadingProps = {
+  text?: string;
+  className?: string;
+};
+
+export function InlineLoading({
+  text = "Pričekajte...",
+  className = "",
+}: InlineLoadingProps) {
+  return (
+    <div className={`py-12 px-4 flex flex-col items-center gap-3 ${className}`}>
+      <div className="relative w-10 h-10 flex items-center justify-center">
+        <div className="absolute inset-0 rounded-full border-[3px] border-navy/15" />
+        <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-navy spin" />
+        <div
+          className="w-2.5 h-2.5 rounded-full"
+          style={{ background: "var(--color-orange)" }}
+        />
+      </div>
+      <div
+        className="text-[13px] font-semibold"
+        style={{ color: "var(--color-muted)" }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
 export function LoadingOverlay() {
   const loading = useUIStore((s) => s.loading);
   if (!loading) return null;

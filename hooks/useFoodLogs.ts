@@ -11,10 +11,14 @@ import type { FoodLogInsert, FoodLogRow } from "@/types/database";
 
 export function useFoodLogs(userId: string | undefined, date: string) {
   const [logs, setLogs] = useState<FoodLogRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(() => Boolean(userId));
 
   const refresh = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setLogs([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const rows = await listLogs(userId, date);

@@ -9,11 +9,12 @@ import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useUIStore } from "@/store/useUIStore";
+import { InlineLoading } from "@/components/ui/Loading";
 import type { MealFilter } from "@/types/app";
 
 export default function FavoritesPage() {
   const user = useAuthStore((s) => s.user);
-  const { favs, refresh, remove } = useFavorites(user?.id);
+  const { favs, loading, refresh, remove } = useFavorites(user?.id);
   const openModal = useUIStore((s) => s.openModal);
   const showToast = useUIStore((s) => s.showToast);
   const [filter, setFilter] = useState<MealFilter>("sve");
@@ -57,7 +58,9 @@ export default function FavoritesPage() {
       </div>
       <FavTabs value={filter} onChange={setFilter} />
       <div className="px-3">
-        {list.length === 0 ? (
+        {loading ? (
+          <InlineLoading text="Pričekajte..." />
+        ) : list.length === 0 ? (
           <div
             className="text-center py-12 px-4 text-sm"
             style={{ color: "var(--color-muted)" }}

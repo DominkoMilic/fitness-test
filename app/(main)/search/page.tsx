@@ -3,7 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SearchBar } from "@/components/search/SearchBar";
 import { FoodResultItem } from "@/components/search/FoodResultItem";
-import { HistoryList, type HistoryListItem } from "@/components/search/HistoryList";
+import {
+  HistoryList,
+  type HistoryListItem,
+} from "@/components/search/HistoryList";
 import { BarcodeScanner } from "@/components/search/BarcodeScanner";
 import { AddFoodModal } from "@/components/modals/AddFoodModal";
 import { ManualKcalModal } from "@/components/modals/ManualKcalModal";
@@ -12,6 +15,7 @@ import { useHistory } from "@/hooks/useHistory";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useDayStore } from "@/store/useDayStore";
+import { InlineLoading } from "@/components/ui/Loading";
 import { dateForOffset } from "@/lib/utils/date";
 import { insertLog, listLogs } from "@/lib/api/foodLogs";
 import { effectiveGrams, macroForGrams } from "@/lib/utils/macros";
@@ -34,10 +38,11 @@ export default function SearchPage() {
 
   const [q, setQ] = useState("");
   const [scan, setScan] = useState(false);
-  const { foods, addLocal } = useFoods();
+  const { foods, loading: foodsLoading, addLocal } = useFoods();
   const user = useAuthStore((s) => s.user);
   const {
     entries,
+    loading: historyLoading,
     push: pushHistory,
     remove: removeHistory,
     clear: clearHistory,
@@ -120,6 +125,8 @@ export default function SearchPage() {
 
   if (!presetMeal) return null;
 
+  const dataLoading = foodsLoading || historyLoading;
+
   return (
     <>
       <div
@@ -139,7 +146,11 @@ export default function SearchPage() {
             strokeWidth={2.25}
             viewBox="0 0 24 24"
           >
-            <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M15 18l-6-6 6-6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           Natrag
         </button>
@@ -151,9 +162,7 @@ export default function SearchPage() {
       <SearchBar value={q} onChange={setQ} onScan={() => setScan((v) => !v)} />
       <div className="px-5 pt-1 pb-2">
         <button
-          onClick={() =>
-            openModal("manualKcal", { defaultMeal: presetMeal })
-          }
+          onClick={() => openModal("manualKcal", { defaultMeal: presetMeal })}
           className="w-full py-2.5 rounded-xl border-[1.5px] border-dashed border-border bg-white text-[13px] font-bold inline-flex items-center justify-center gap-2 hover:bg-bg active:bg-bg/60"
           style={{ color: "var(--color-navy)" }}
         >
@@ -166,7 +175,9 @@ export default function SearchPage() {
         onClose={() => setScan(false)}
         onResult={onScanResult}
       />
-      {q ? (
+      {dataLoading ? (
+        <InlineLoading text="Pričekajte..." className="px-5" />
+      ) : q ? (
         filtered.length ? (
           <div>
             {filtered.map((f) => (

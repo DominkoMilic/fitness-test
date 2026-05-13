@@ -34,10 +34,7 @@ export function Modal({ open, onClose, children, className = "" }: Props) {
     const vv = window.visualViewport;
     if (!vv) return;
     const update = () => {
-      const inset = Math.max(
-        0,
-        window.innerHeight - vv.height - vv.offsetTop,
-      );
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       setKbdInset(inset);
     };
     update();
@@ -117,10 +114,8 @@ export function Modal({ open, onClose, children, className = "" }: Props) {
   };
 
   const requestClose = () => {
-    if (typeof window !== "undefined" && window.history.state?.__kfModal) {
-      window.history.back();
-      return;
-    }
+    // Close immediately for UI actions (outside click, back arrow).
+    // History entry cleanup is handled in the `open` effect below.
     onClose();
   };
 

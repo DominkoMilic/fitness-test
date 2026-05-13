@@ -10,10 +10,14 @@ import type { FavoriteInsert, FavoriteRow } from "@/types/database";
 
 export function useFavorites(userId: string | undefined) {
   const [favs, setFavs] = useState<FavoriteRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(() => Boolean(userId));
 
   const refresh = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setFavs([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       setFavs(await listFavorites(userId));

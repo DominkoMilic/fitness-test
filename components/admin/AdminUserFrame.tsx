@@ -3,7 +3,9 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { AccessCodeRow } from "@/types/database";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { updateCodeExpiry } from "@/lib/api/codes";
+import { todayISO } from "@/lib/utils/date";
 import { useUIStore } from "@/store/useUIStore";
 import { PrivacyFooter } from "@/components/legal/PrivacyFooter";
 
@@ -21,6 +23,12 @@ function formatExpireDateHR(value: string) {
   return `${Number(day)}.${Number(month)}.${year}.`;
 }
 
+function dayBefore(isoDate: string) {
+  const d = new Date(`${isoDate}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().split("T")[0] ?? isoDate;
+}
+
 export function AdminUserFrame({
   code,
   user,
@@ -31,6 +39,8 @@ export function AdminUserFrame({
   const showToast = useUIStore((s) => s.showToast);
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [displayExp, setDisplayExp] = useState(user?.exp ?? "");
   const [expDraft, setExpDraft] = useState(user?.exp ?? "");
 
@@ -56,6 +66,41 @@ export function AdminUserFrame({
       showToast("Greška pri spremanju datuma isteka");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const activeExp = displayExp || user?.exp || "";
+
+  const onOpenCancel = () => {
+    if (activeExp < todayISO()) {
+      showToast("Ovaj kod je već istekao");
+      return;
+    }
+    setCancelOpen(true);
+  };
+
+  const onConfirmCancel = async () => {
+    if (!user) return;
+
+    const today = todayISO();
+    if (activeExp < today) {
+      setCancelOpen(false);
+      showToast("Ovaj kod je već istekao");
+      return;
+    }
+
+    const cancelExp = dayBefore(today);
+    setCancelling(true);
+    try {
+      await updateCodeExpiry(user.code, cancelExp);
+      setDisplayExp(cancelExp);
+      setExpDraft(cancelExp);
+      setCancelOpen(false);
+      showToast("Račun je privremeno ukinut");
+    } catch {
+      showToast("Greška pri ukidanju računa");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -129,15 +174,24 @@ export function AdminUserFrame({
           </div>
           <div className="text-sm mt-1" style={{ color: "var(--color-muted)" }}>
             Kod: {user.code} · cilj: {user.goal} kcal · vrijedi do{" "}
-            {formatExpireDateHR(displayExp || user.exp)}
+            {formatExpireDateHR(activeExp)}
           </div>
-          <button
-            onClick={onOpenEdit}
-            className="mt-3 inline-flex px-3 py-1.5 rounded-full text-[11px] font-bold border border-orange/30 bg-orange/10"
-            style={{ color: "var(--color-orange)" }}
-          >
-            Produži / skrati datum isteka
-          </button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              onClick={onOpenEdit}
+              className="inline-flex px-3 py-1.5 rounded-full text-[11px] font-bold border border-orange/30 bg-orange/10"
+              style={{ color: "var(--color-orange)" }}
+            >
+              Produži / skrati datum isteka
+            </button>
+            <button
+              onClick={onOpenCancel}
+              className="inline-flex px-3 py-1.5 rounded-full text-[11px] font-bold border border-red-300 bg-red-50"
+              style={{ color: "#b42318" }}
+            >
+              Ukini račun
+            </button>
+          </div>
         </div>
       </div>
 
@@ -198,7 +252,7 @@ export function AdminUserFrame({
           className="text-[12px] mb-4"
           style={{ color: "var(--color-muted)" }}
         >
-          Trenutno: {formatExpireDateHR(displayExp || user.exp)}
+          Trenutno: {formatExpireDateHR(activeExp)}
         </div>
         <div className="flex gap-2.5">
           <button
@@ -217,6 +271,26 @@ export function AdminUserFrame({
           </button>
         </div>
       </Modal>
+
+      <ConfirmPopup
+        open={cancelOpen}
+        question="Jesi li siguran da želiš privremeno ukinuti ovaj račun?"
+        onClose={() => {
+          if (!cancelling) setCancelOpen(false);
+        }}
+        button1={{
+          text: "Ne",
+          variant: "cancel",
+          onClick: () => {
+            if (!cancelling) setCancelOpen(false);
+          },
+        }}
+        button2={{
+          text: cancelling ? "Ukidam..." : "Da",
+          variant: "orange",
+          onClick: onConfirmCancel,
+        }}
+      />
     </div>
   );
 }

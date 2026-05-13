@@ -16,17 +16,22 @@ export type HistoryEntry = {
 
 export function useHistory(userId: string | undefined) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const [loading, setLoading] = useState<boolean>(() => Boolean(userId));
 
   const reload = useCallback(async () => {
     if (!userId) {
       setEntries([]);
+      setLoading(false);
       return;
     }
+    setLoading(true);
     try {
       const rows = await listSearchHistory(userId);
       setEntries(rows.map(rowToEntry));
     } catch {
       setEntries([]);
+    } finally {
+      setLoading(false);
     }
   }, [userId]);
 
@@ -84,7 +89,7 @@ export function useHistory(userId: string | undefined) {
     }
   }, [userId, reload]);
 
-  return { entries, push, remove, clear, reload };
+  return { entries, loading, push, remove, clear, reload };
 }
 
 function rowToEntry(r: SearchHistoryRow): HistoryEntry {

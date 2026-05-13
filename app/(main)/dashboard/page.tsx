@@ -13,6 +13,7 @@ import { useUIStore } from "@/store/useUIStore";
 import { EditFoodModal } from "@/components/modals/EditFoodModal";
 import { SaveFavModal } from "@/components/modals/SaveFavModal";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
+import { InlineLoading } from "@/components/ui/Loading";
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -22,7 +23,7 @@ export default function DashboardPage() {
   const showToast = useUIStore((s) => s.showToast);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  const { logs, refresh, remove } = useFoodLogs(user?.id, date);
+  const { logs, loading, refresh, remove } = useFoodLogs(user?.id, date);
   const totals = sumLogs(logs);
   const goal = user?.goal ?? 1500;
   const pendingLog = logs.find((log) => log.id === pendingDeleteId) ?? null;
@@ -57,11 +58,15 @@ export default function DashboardPage() {
         <MacroPills totals={totals} />
         <div className="h-5" />
       </div>
-      <MealsList
-        logs={logs}
-        onEdit={onEdit}
-        onDelete={(id) => setPendingDeleteId(id)}
-      />
+      {loading ? (
+        <InlineLoading text="Pričekajte..." className="px-3" />
+      ) : (
+        <MealsList
+          logs={logs}
+          onEdit={onEdit}
+          onDelete={(id) => setPendingDeleteId(id)}
+        />
+      )}
       <div className="h-5" />
       <EditFoodModal onSaved={refresh} />
       <SaveFavModal onSaved={refresh} />
