@@ -399,21 +399,23 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
         </button>
       )}
 
-      <div className="flex gap-2.5">
-        <button
-          onClick={closeModal}
-          className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-bg text-[15px] font-semibold"
-          style={{ color: "var(--color-muted)" }}
-        >
-          Odustani
-        </button>
-        <button
-          onClick={onConfirm}
-          disabled={saving}
-          className="flex-2 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[15px] font-bold disabled:opacity-60"
-        >
-          Spremi
-        </button>
+      <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] bg-white border-t border-border/70">
+        <div className="flex gap-2.5">
+          <button
+            onClick={closeModal}
+            className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-bg text-[15px] font-semibold"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Odustani
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={saving}
+            className="flex-2 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[15px] font-bold disabled:opacity-60"
+          >
+            Spremi
+          </button>
+        </div>
       </div>
     </Modal>
   );

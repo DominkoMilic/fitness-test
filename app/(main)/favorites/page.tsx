@@ -65,7 +65,8 @@ export default function FavoritesPage() {
             Nema spremljenih obroka.
             <br />
             <br />
-            Unesi obrok u dnevnik pa ga spremi kao omiljeni.
+            Dodaj novi obrok klikom na gumb &quot;Dodaj novo omiljeno jelo&quot;
+            iznad, ili spremi postojeći obrok kao omiljeni iz dnevnika hrane.
           </div>
         ) : (
           list.map((f) => (
