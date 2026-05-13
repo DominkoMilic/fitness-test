@@ -7,10 +7,14 @@ import type { FavoriteRow, FoodLogRow } from "@/types/database";
 /** Read-only admin proxy for a user's food logs by date. */
 export function useAdminUserFoodLogs(code: string, date: string) {
   const [logs, setLogs] = useState<FoodLogRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(() => Boolean(code && date));
 
   useEffect(() => {
-    if (!code || !date) return;
+    if (!code || !date) {
+      setLogs([]);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     listLogsAsAdmin(code, date)
@@ -34,10 +38,14 @@ export function useAdminUserFoodLogs(code: string, date: string) {
 /** Read-only admin proxy for a user's favorites. */
 export function useAdminUserFavorites(code: string) {
   const [favs, setFavs] = useState<FavoriteRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(() => Boolean(code));
 
   useEffect(() => {
-    if (!code) return;
+    if (!code) {
+      setFavs([]);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     listFavoritesAsAdmin(code)

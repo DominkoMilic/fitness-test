@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { AdminUserFrame } from "@/components/admin/AdminUserFrame";
 import { FavCard } from "@/components/favorites/FavCard";
 import { FavTabs } from "@/components/favorites/FavTabs";
+import { InlineLoading } from "@/components/ui/Loading";
 import { isAdminAuthenticated } from "@/lib/utils/adminAuth";
 import { getCodeByValue } from "@/lib/api/codes";
 import { useAdminUserFavorites } from "@/hooks/useAdminUserData";
@@ -37,7 +38,7 @@ export default function AdminUserFavoritesPage() {
     };
   }, [code, router]);
 
-  const { favs } = useAdminUserFavorites(code);
+  const { favs, loading: loadingFavs } = useAdminUserFavorites(code);
   const list = filter === "sve" ? favs : favs.filter((f) => f.meal === filter);
 
   return (
@@ -58,7 +59,9 @@ export default function AdminUserFavoritesPage() {
         </div>
         <FavTabs value={filter} onChange={setFilter} />
         <div className="px-3 pb-3">
-          {list.length === 0 ? (
+          {loadingFavs ? (
+            <InlineLoading text="Pričekajte..." className="py-10" />
+          ) : list.length === 0 ? (
             <div
               className="text-center py-12 px-4 text-sm"
               style={{ color: "var(--color-muted)" }}

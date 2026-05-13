@@ -6,6 +6,7 @@ import { CalorieRing } from "@/components/dashboard/CalorieRing";
 import { DayNav } from "@/components/dashboard/DayNav";
 import { MacroPills } from "@/components/dashboard/MacroPills";
 import { MealsList } from "@/components/dashboard/MealsList";
+import { InlineLoading } from "@/components/ui/Loading";
 import { isAdminAuthenticated } from "@/lib/utils/adminAuth";
 import { getCodeByValue } from "@/lib/api/codes";
 import { useAdminUserFoodLogs } from "@/hooks/useAdminUserData";
@@ -41,7 +42,7 @@ export default function AdminUserDashboardPage() {
   }, [code, router]);
 
   const date = useMemo(() => dateForOffset(offset), [offset]);
-  const { logs } = useAdminUserFoodLogs(code, date);
+  const { logs, loading: loadingLogs } = useAdminUserFoodLogs(code, date);
   const totals = sumLogs(logs);
   const goal = user?.goal ?? 1500;
 
@@ -67,7 +68,11 @@ export default function AdminUserDashboardPage() {
         <MacroPills totals={totals} />
         <div className="h-5" />
       </div>
-      <MealsList logs={logs} readOnly />
+      {loadingLogs ? (
+        <InlineLoading text="Pričekajte..." className="px-3" />
+      ) : (
+        <MealsList logs={logs} readOnly />
+      )}
       <div className="h-5" />
     </AdminUserFrame>
   );

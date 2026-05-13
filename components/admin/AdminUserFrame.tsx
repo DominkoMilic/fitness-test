@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { AccessCodeRow } from "@/types/database";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
+import { InlineLoading } from "@/components/ui/Loading";
 import { updateCodeExpiry } from "@/lib/api/codes";
 import { todayISO } from "@/lib/utils/date";
 import { useUIStore } from "@/store/useUIStore";
@@ -107,11 +108,8 @@ export function AdminUserFrame({
   if (loading) {
     return (
       <div className="px-5 py-5">
-        <div
-          className="kf-card bg-white rounded-2xl border border-border p-5 text-sm"
-          style={{ color: "var(--color-muted)" }}
-        >
-          Učitavam korisnika...
+        <div className="kf-card bg-white rounded-2xl border border-border p-2">
+          <InlineLoading text="Pričekajte..." className="py-10" />
         </div>
       </div>
     );

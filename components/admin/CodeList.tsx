@@ -12,6 +12,7 @@ import type { UserActivityRow } from "@/types/database";
 import { useUIStore } from "@/store/useUIStore";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { Dropdown } from "@/components/ui/Dropdown";
+import { InlineLoading } from "@/components/ui/Loading";
 import { Pagination } from "@/components/ui/Pagination";
 import { todayISO } from "@/lib/utils/date";
 import { useIsClientMounted } from "@/hooks/useIsClientMounted";
@@ -166,7 +167,9 @@ function CodeListInner({ refreshKey }: { refreshKey: number }) {
           />
         </div>
 
-        {codes === null && <EmptyText>Učitavam...</EmptyText>}
+        {codes === null && (
+          <InlineLoading text="Pričekajte..." className="py-8" />
+        )}
         {codes?.length === 0 && <EmptyText>Nema kodova.</EmptyText>}
         {codes !== null && filteredCodes.length === 0 && (
           <EmptyText>

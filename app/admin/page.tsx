@@ -6,6 +6,7 @@ import { CodeList } from "@/components/admin/CodeList";
 import { SyncSection } from "@/components/admin/SyncSection";
 import { SyncPreviewModal } from "@/components/modals/SyncPreviewModal";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
+import { InlineLoading } from "@/components/ui/Loading";
 import {
   clearAdminAuthenticated,
   isAdminAuthenticated,
@@ -31,7 +32,15 @@ export default function AdminPage() {
     };
   }, [router]);
 
-  if (!authed) return null;
+  if (!authed) {
+    return (
+      <div className="px-5 py-5">
+        <div className="kf-card bg-white rounded-2xl border border-border p-2">
+          <InlineLoading text="Pričekajte..." className="py-10" />
+        </div>
+      </div>
+    );
+  }
 
   const onLogout = async () => {
     setConfirmOpen(false);
