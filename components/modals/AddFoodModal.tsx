@@ -58,7 +58,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
   const offset = useDayStore((s) => s.offset);
 
   const [unit, setUnit] = useState<AmountUnit>("g");
-  const [qty, setQty] = useState<number>(100);
+  const [qtyStr, setQtyStr] = useState<string>("100");
   const [meal, setMeal] = useState<MealKey>("dorucak");
   const [lastPayload, setLastPayload] = useState<Payload | null>(null);
 
@@ -71,7 +71,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
         ? Number(payload.defaultPieces)
         : (payload.defaultGrams ?? 100);
     setUnit(initUnit);
-    setQty(initQty);
+    setQtyStr(String(initQty));
     setMeal(payload.defaultMeal ?? "dorucak");
   } else if (modal !== "addFood" && lastPayload) {
     setLastPayload(null);
@@ -80,7 +80,8 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
   if (modal !== "addFood" || !payload) return null;
   const food = payload.food;
   const piece = getPieceInfo(food);
-  const grams = effectiveGrams(qty || 0, unit, food, null);
+  const qty = parseFloat(qtyStr) || 0;
+  const grams = effectiveGrams(qty, unit, food, null);
   const macros = macroForGrams(food, grams);
 
   // Build available unit list dynamically.
@@ -97,7 +98,7 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
 
   const onUnitChange = (u: AmountUnit) => {
     setUnit(u);
-    setQty(defaultQtyForUnit(u));
+    setQtyStr(String(defaultQtyForUnit(u)));
   };
 
   const onConfirm = async () => {
@@ -182,8 +183,8 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
         ref={(el) => {
           if (el) requestAnimationFrame(() => el.focus());
         }}
-        value={qty === 0 ? "" : qty}
-        onChange={(e) => setQty(parseFloat(e.target.value) || 0)}
+        value={qtyStr}
+        onChange={(e) => setQtyStr(e.target.value)}
         className="mb-3"
       />
       {unit === "kom" && piece && (

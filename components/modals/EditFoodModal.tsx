@@ -18,14 +18,14 @@ export function EditFoodModal({ onSaved }: { onSaved?: () => void }) {
   const showToast = useUIStore((s) => s.showToast);
 
   const [unit, setUnit] = useState<"g" | "kom">("g");
-  const [qty, setQty] = useState<number>(0);
+  const [qtyStr, setQtyStr] = useState<string>("");
   const [meal, setMeal] = useState<MealKey>("dorucak");
 
   useEffect(() => {
     if (modal === "editFood" && payload?.log) {
       const l = payload.log;
       setUnit(l.pieces ? "kom" : "g");
-      setQty(l.pieces ?? Number(l.grams));
+      setQtyStr(String(l.pieces ?? Number(l.grams)));
       setMeal(l.meal);
     }
   }, [modal, payload]);
@@ -42,7 +42,8 @@ export function EditFoodModal({ onSaved }: { onSaved?: () => void }) {
     m: Number(log.m) * factor100,
   };
   const editPieceG = log.pieces ? Number(log.grams) / Number(log.pieces) : null;
-  const grams = effectiveGrams(qty || 0, unit, food, editPieceG);
+  const qty = parseFloat(qtyStr) || 0;
+  const grams = effectiveGrams(qty, unit, food, editPieceG);
   const macros = macroForGrams(food, grams);
 
   const onConfirm = async () => {
@@ -84,8 +85,8 @@ export function EditFoodModal({ onSaved }: { onSaved?: () => void }) {
       <Input
         type="number"
         inputMode="decimal"
-        value={qty === 0 ? "" : qty}
-        onChange={(e) => setQty(parseFloat(e.target.value) || 0)}
+        value={qtyStr}
+        onChange={(e) => setQtyStr(e.target.value)}
         onFocus={(e) => {
           const input = e.currentTarget;
           setTimeout(() => input.select(), 0);

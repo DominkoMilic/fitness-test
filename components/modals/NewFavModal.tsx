@@ -42,7 +42,7 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [addSearch, setAddSearch] = useState("");
   const [addFood, setAddFood] = useState<FoodEntry | null>(null);
-  const [addQty, setAddQty] = useState(100);
+  const [addQtyStr, setAddQtyStr] = useState("100");
   const [lastModal, setLastModal] = useState<typeof modal>(null);
 
   if (modal === "newFav" && lastModal !== "newFav") {
@@ -53,7 +53,7 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
     setShowAdd(false);
     setAddSearch("");
     setAddFood(null);
-    setAddQty(100);
+    setAddQtyStr("100");
   } else if (modal !== "newFav" && lastModal === "newFav") {
     setLastModal(modal);
   }
@@ -109,11 +109,12 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
   const selectFood = (food: FoodEntry) => {
     setAddFood(food);
     setAddSearch(food.name);
-    setAddQty(100);
+    setAddQtyStr("100");
   };
 
   const confirmAdd = () => {
     if (!addFood) return;
+    const addQty = parseFloat(addQtyStr) || 0;
     if (!addQty || addQty <= 0) {
       showToast("Količina mora biti veća od 0");
       return;
@@ -139,7 +140,7 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
     setShowAdd(false);
     setAddSearch("");
     setAddFood(null);
-    setAddQty(100);
+    setAddQtyStr("100");
   };
 
   const onConfirm = async () => {
@@ -348,15 +349,15 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
               <Input
                 type="number"
                 inputMode="decimal"
-                value={addQty === 0 ? "" : addQty}
-                onChange={(e) => setAddQty(parseFloat(e.target.value) || 0)}
+                value={addQtyStr}
+                onChange={(e) => setAddQtyStr(e.target.value)}
                 className="mb-2"
               />
               <div
                 className="text-xs mb-2"
                 style={{ color: "var(--color-muted)" }}
               >
-                {Math.round(macroForGrams(addFood, addQty).kcal)} kcal
+                {Math.round(macroForGrams(addFood, parseFloat(addQtyStr) || 0).kcal)} kcal
               </div>
               <div className="flex gap-2">
                 <button

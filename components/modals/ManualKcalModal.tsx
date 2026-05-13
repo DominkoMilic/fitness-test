@@ -23,14 +23,14 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
   const user = useAuthStore((s) => s.user);
   const offset = useDayStore((s) => s.offset);
 
-  const [kcal, setKcal] = useState<number>(0);
+  const [kcalStr, setKcalStr] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [meal, setMeal] = useState<MealKey>("dorucak");
   const [lastPayload, setLastPayload] = useState<Payload | null>(null);
 
   if (modal === "manualKcal" && payload !== lastPayload) {
     setLastPayload(payload);
-    setKcal(0);
+    setKcalStr("");
     setName("");
     setMeal(payload?.defaultMeal ?? "dorucak");
   } else if (modal !== "manualKcal" && lastPayload) {
@@ -38,6 +38,7 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
   }
 
   if (modal !== "manualKcal") return null;
+  const kcal = parseFloat(kcalStr) || 0;
 
   const onConfirm = async () => {
     if (!user) return;
@@ -90,8 +91,8 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
         type="number"
         inputMode="numeric"
         autoFocus
-        value={kcal === 0 ? "" : kcal}
-        onChange={(e) => setKcal(parseFloat(e.target.value) || 0)}
+        value={kcalStr}
+        onChange={(e) => setKcalStr(e.target.value)}
         placeholder="0"
         className="mb-3"
       />
