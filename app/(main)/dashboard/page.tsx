@@ -13,14 +13,12 @@ import { useUIStore } from "@/store/useUIStore";
 import { EditFoodModal } from "@/components/modals/EditFoodModal";
 import { SaveFavModal } from "@/components/modals/SaveFavModal";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
-import { getLog } from "@/lib/api/foodLogs";
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const offset = useDayStore((s) => s.offset);
   const date = dateForOffset(offset);
   const openModal = useUIStore((s) => s.openModal);
-  const setLoading = useUIStore((s) => s.setLoading);
   const showToast = useUIStore((s) => s.showToast);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -29,10 +27,8 @@ export default function DashboardPage() {
   const goal = user?.goal ?? 1500;
   const pendingLog = logs.find((log) => log.id === pendingDeleteId) ?? null;
 
-  const onEdit = async (id: string) => {
-    setLoading(true);
-    const log = await getLog(id);
-    setLoading(false);
+  const onEdit = (id: string) => {
+    const log = logs.find((l) => l.id === id);
     if (!log) {
       showToast("Stavka nije pronađena");
       return;
