@@ -6,6 +6,7 @@ import {
   ReactNode,
   useEffect,
   useRef,
+  useState,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -20,6 +21,34 @@ export function Modal({ open, onClose, children, className = "" }: Props) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const openedWithHistoryRef = useRef(false);
   const closingFromPopRef = useRef(false);
+  const [kbdInset, setKbdInset] = useState(0);
+
+  // iOS Safari quirk: when the on-screen keyboard opens, fixed-position
+  // elements stay anchored to the layout viewport, but the visual viewport
+  // shrinks. Result: the bottom of a bottom-sheet modal sits *behind* the
+  // keyboard. We read keyboard height via `visualViewport` and push the
+  // sheet up by that amount. Android Chrome already resizes the layout
+  // viewport so the value is 0 there — no harm.
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const inset = Math.max(
+        0,
+        window.innerHeight - vv.height - vv.offsetTop,
+      );
+      setKbdInset(inset);
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      setKbdInset(0);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
@@ -101,7 +130,11 @@ export function Modal({ open, onClose, children, className = "" }: Props) {
         <motion.div
           key="modal-backdrop"
           className="fixed inset-0 z-100 flex items-end justify-center"
-          style={{ background: "rgba(0,0,0,0.55)" }}
+          style={{
+            background: "rgba(0,0,0,0.55)",
+            // Push the bottom-anchored sheet up by the iOS keyboard height.
+            paddingBottom: kbdInset ? `${kbdInset}px` : undefined,
+          }}
           onClick={requestClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -110,8 +143,14 @@ export function Modal({ open, onClose, children, className = "" }: Props) {
         >
           <motion.div
             ref={bodyRef}
-            className={`bg-white rounded-t-3xl w-full max-w-107.5 px-5 pt-6 relative max-h-[92dvh] overflow-y-auto overscroll-contain ${className}`}
+            className={`bg-white rounded-t-3xl w-full max-w-107.5 px-5 pt-6 relative overflow-y-auto overscroll-contain ${className}`}
             style={{
+              // When keyboard is open we cap to the visible viewport directly;
+              // otherwise fall back to the dvh-based limit that already
+              // accounts for the URL bar.
+              maxHeight: kbdInset
+                ? `calc(100dvh - ${kbdInset}px - 1rem)`
+                : "92dvh",
               paddingBottom: "calc(2rem + env(safe-area-inset-bottom))",
               scrollPaddingBottom: "10rem",
             }}
