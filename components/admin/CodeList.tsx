@@ -11,20 +11,17 @@ import { listUserActivity } from "@/lib/api/userActivity";
 import type { UserActivityRow } from "@/types/database";
 import { useUIStore } from "@/store/useUIStore";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
-import { Dropdown } from "@/components/ui/Dropdown";
 import { InlineLoading } from "@/components/ui/Loading";
 import { Pagination } from "@/components/ui/Pagination";
 import { todayISO } from "@/lib/utils/date";
 import { useIsClientMounted } from "@/hooks/useIsClientMounted";
 import { CodeRow } from "./CodeRow";
 import {
-  ACTIVITY_SORT_OPTIONS,
   PAGE_SIZE,
   SCROLL_KEY,
   readPersistedState,
-  sortByActivity,
+  sortByNewest,
   writePersistedState,
-  type ActivitySort,
   type UserFilter,
 } from "./codeListUtils";
 
@@ -42,9 +39,6 @@ function CodeListInner({ refreshKey }: { refreshKey: number }) {
   const [codes, setCodes] = useState<UserActivityRow[] | null>(null);
   const [filter, setFilter] = useState<UserFilter>(
     () => readPersistedState().filter ?? "active",
-  );
-  const [activitySort, setActivitySort] = useState<ActivitySort>(
-    () => readPersistedState().sort ?? "most",
   );
   const [query, setQuery] = useState<string>(
     () => readPersistedState().query ?? "",
@@ -66,8 +60,8 @@ function CodeListInner({ refreshKey }: { refreshKey: number }) {
   const q = query.trim().toLowerCase();
   const searched = !q
     ? filteredCodes
-    : filteredCodes.filter((c) => c.code.toLowerCase().includes(q));
-  const sorted = sortByActivity(searched, activitySort);
+    : filteredCodes.filter((c) => c.name.toLowerCase().includes(q));
+  const sorted = sortByNewest(searched);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   // Clamp the page if data shrinks. Done during render so we don't need an
@@ -84,12 +78,12 @@ function CodeListInner({ refreshKey }: { refreshKey: number }) {
       return;
     }
     setPage(1);
-  }, [filter, activitySort, query]);
+  }, [filter, query]);
 
   // Persist current view for round-trips to user pages.
   useEffect(() => {
-    writePersistedState({ page, filter, sort: activitySort, query });
-  }, [page, filter, activitySort, query]);
+    writePersistedState({ page, filter, query });
+  }, [page, filter, query]);
 
   // Restore window scroll once codes are present in the DOM.
   useLayoutEffect(() => {
@@ -137,12 +131,6 @@ function CodeListInner({ refreshKey }: { refreshKey: number }) {
           >
             Korisnici
           </div>
-          <Dropdown
-            value={activitySort}
-            onChange={setActivitySort}
-            options={ACTIVITY_SORT_OPTIONS}
-            ariaLabel="Sortiraj po aktivnosti"
-          />
         </div>
 
         <div className="flex gap-1.5 mb-3 overflow-x-auto">
@@ -161,8 +149,8 @@ function CodeListInner({ refreshKey }: { refreshKey: number }) {
         <div className="mb-3">
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value.toUpperCase())}
-            placeholder="Pretraži korisnike po kodu"
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Pretraži korisnike po imenu"
             className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold outline-none border-[1.5px] border-border focus:border-orange text-navy"
           />
         </div>

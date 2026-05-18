@@ -1,4 +1,3 @@
-import type { DropdownOption } from "@/components/ui/Dropdown";
 import type { ActivityStatus, UserActivityRow } from "@/types/database";
 
 // -----------------------------------------------------------------------------
@@ -7,30 +6,11 @@ import type { ActivityStatus, UserActivityRow } from "@/types/database";
 
 export type UserFilter = "active" | "deactivated";
 
-export type ActivitySort = "most" | "least";
-
-export const ACTIVITY_SORT_OPTIONS: readonly DropdownOption<ActivitySort>[] = [
-  { value: "most", label: "Najaktivniji" },
-  { value: "least", label: "Najmanje aktivni" },
-];
-
-function inactivityScore(c: UserActivityRow): number {
-  // null last_upload → treat as highest inactivity.
-  if (c.inactivity_days == null) return Number.POSITIVE_INFINITY;
-  return c.inactivity_days;
-}
-
-export function sortByActivity(
-  rows: UserActivityRow[],
-  dir: ActivitySort,
-): UserActivityRow[] {
-  const factor = dir === "most" ? 1 : -1;
+export function sortByNewest(rows: UserActivityRow[]): UserActivityRow[] {
   return [...rows].sort((a, b) => {
-    const av = inactivityScore(a);
-    const bv = inactivityScore(b);
-    if (av !== bv) return (av - bv) * factor;
-    // Tie-breaker: higher streak first when "most" active, reverse otherwise.
-    return (b.current_streak - a.current_streak) * factor;
+    const av = a.created_at ? Date.parse(a.created_at) : 0;
+    const bv = b.created_at ? Date.parse(b.created_at) : 0;
+    return bv - av;
   });
 }
 
@@ -73,7 +53,6 @@ export const SCROLL_KEY = "kf_admin_list_scroll";
 export type PersistedState = {
   page: number;
   filter: UserFilter;
-  sort: ActivitySort;
   query: string;
 };
 

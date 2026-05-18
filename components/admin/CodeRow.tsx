@@ -42,13 +42,13 @@ export function CodeRow({ row, query, onDelete }: Props) {
             className="bg-indigo-50 rounded px-2 py-1 font-extrabold font-mono text-[13px]"
             style={{ color: "var(--color-navy)" }}
           >
-            {highlightMatch(row.code, query)}
+            {row.code}
           </span>
           <div
             className="text-[11px] mt-1"
             style={{ color: "var(--color-muted)" }}
           >
-            {row.name} · do {formatExpireDateHR(row.exp)} · {row.goal} kcal
+            {highlightMatch(row.name, query)} · do {formatExpireDateHR(row.exp)} · {row.goal} kcal
             {row.inactivity_days != null && row.inactivity_days >= 2 && (
               <span className={`ml-1 font-semibold ${style.icon}`}>
                 · {row.inactivity_days}d neaktivnosti

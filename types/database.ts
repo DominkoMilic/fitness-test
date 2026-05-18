@@ -99,6 +99,7 @@ export type UserActivityRow = {
   last_upload_date: string | null;
   inactivity_days: number | null;
   activity_status: ActivityStatus;
+  created_at: string | null;
 };
 
 export type FoodRow = {
