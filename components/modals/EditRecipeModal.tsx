@@ -39,7 +39,7 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
 
   const [name, setName] = useState("");
   const [meal, setMeal] = useState<MealKey>("dorucak");
-  const [people, setPeople] = useState<number>(1);
+  const [peopleStr, setPeopleStr] = useState<string>("1");
   const [items, setItems] = useState<EditItem[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -53,7 +53,7 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
       const r = payload.recipe;
       setName(r.name);
       setMeal(r.meal);
-      setPeople(Math.max(1, Number(r.people) || 1));
+      setPeopleStr(String(Math.max(1, Number(r.people) || 1)));
       setItems(
         r.items.map((it) => {
           const g = Number(it.grams) || 1;
@@ -174,8 +174,9 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
       showToast("Recept mora imati barem jednu namirnicu");
       return;
     }
-    if (people < 1) {
-      showToast("Broj osoba mora biti barem 1");
+    const people = parseInt(peopleStr, 10);
+    if (!Number.isFinite(people) || people < 1) {
+      showToast("Unesi broj osoba (najmanje 1)");
       return;
     }
     if (items.some((it) => (it.pieces ?? it.grams) <= 0 || it.grams <= 0)) {
@@ -228,7 +229,10 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
   };
 
   const totalKcal = items.reduce((s, it) => s + it.kcal, 0);
-  const perKcal = totalKcal / Math.max(1, people);
+  const peopleParsed = parseInt(peopleStr, 10);
+  const perKcal =
+    totalKcal /
+    (Number.isFinite(peopleParsed) && peopleParsed > 0 ? peopleParsed : 1);
 
   return (
     <Modal open onClose={closeModal}>
@@ -282,13 +286,27 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
         type="number"
         inputMode="numeric"
         min={1}
-        value={people === 0 ? "" : people}
-        onChange={(e) => {
-          const n = parseInt(e.target.value, 10);
-          setPeople(Number.isFinite(n) && n > 0 ? n : 1);
+        value={peopleStr}
+        onChange={(e) => setPeopleStr(e.target.value)}
+        onFocus={(e) => {
+          const input = e.currentTarget;
+          setTimeout(() => input.select(), 0);
         }}
-        className="mb-4"
+        placeholder="npr. 4"
+        className={peopleStr.trim() === "" ? "mb-1" : "mb-4"}
       />
+      {peopleStr.trim() === "" && (
+        <div
+          className="mb-4 px-3 py-1.5 rounded-full inline-flex text-[11px] font-bold border"
+          style={{
+            color: "var(--color-orange)",
+            background: "rgba(255,138,0,0.08)",
+            borderColor: "rgba(255,138,0,0.35)",
+          }}
+        >
+          Unesi barem 1 osobu
+        </div>
+      )}
 
       <div
         className="text-[11px] font-bold uppercase tracking-wider mb-2"
