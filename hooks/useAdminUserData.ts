@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { listLogsAsAdmin } from "@/lib/api/foodLogs";
 import { listFavoritesAsAdmin } from "@/lib/api/favorites";
-import type { FavoriteRow, FoodLogRow } from "@/types/database";
+import { listRecipesAsAdmin } from "@/lib/api/recipes";
+import type { FavoriteRow, FoodLogRow, RecipeRow } from "@/types/database";
 
 /** Read-only admin proxy for a user's food logs by date. */
 export function useAdminUserFoodLogs(code: string, date: string) {
@@ -64,4 +65,35 @@ export function useAdminUserFavorites(code: string) {
   }, [code]);
 
   return { favs, loading };
+}
+
+/** Read-only admin proxy for a user's recipes. */
+export function useAdminUserRecipes(code: string) {
+  const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  const [loading, setLoading] = useState<boolean>(() => Boolean(code));
+
+  useEffect(() => {
+    if (!code) {
+      setRecipes([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    listRecipesAsAdmin(code)
+      .then((rows) => {
+        if (!cancelled) setRecipes(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setRecipes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  return { recipes, loading };
 }
