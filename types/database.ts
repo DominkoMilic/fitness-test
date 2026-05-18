@@ -28,6 +28,12 @@ export type Database = {
         Update: Partial<FavoriteInsert>;
         Relationships: [];
       };
+      recipes: {
+        Row: RecipeRow;
+        Insert: RecipeInsert;
+        Update: Partial<RecipeInsert>;
+        Relationships: [];
+      };
       search_history: {
         Row: SearchHistoryDbRow;
         Insert: SearchHistoryDbInsert;
@@ -171,6 +177,26 @@ export type FavoriteRow = {
   created_at: string;
 };
 export type FavoriteInsert = Omit<FavoriteRow, "id" | "created_at"> & {
+  id?: number;
+  created_at?: string;
+};
+
+export type RecipeItem = FavoriteItem;
+
+export type RecipeRow = {
+  id: number;
+  user_id: string;
+  name: string;
+  meal: MealKey;
+  people: number;
+  items: RecipeItem[];
+  total_kcal: number;
+  total_p: number;
+  total_u: number;
+  total_m: number;
+  created_at: string;
+};
+export type RecipeInsert = Omit<RecipeRow, "id" | "created_at"> & {
   id?: number;
   created_at?: string;
 };

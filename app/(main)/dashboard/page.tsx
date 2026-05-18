@@ -12,6 +12,9 @@ import { MealsList } from "@/components/dashboard/MealsList";
 import { useUIStore } from "@/store/useUIStore";
 import { EditFoodModal } from "@/components/modals/EditFoodModal";
 import { SaveFavModal } from "@/components/modals/SaveFavModal";
+import { AddRecipeModal } from "@/components/modals/AddRecipeModal";
+import { NewRecipeModal } from "@/components/modals/NewRecipeModal";
+import { RecipesWidget } from "@/components/dashboard/RecipesWidget";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { InlineLoading } from "@/components/ui/Loading";
 
@@ -67,9 +70,12 @@ export default function DashboardPage() {
           onDelete={(id) => setPendingDeleteId(id)}
         />
       )}
+      <RecipesWidget />
       <div className="h-5" />
       <EditFoodModal onSaved={refresh} />
       <SaveFavModal onSaved={refresh} />
+      <AddRecipeModal onAdded={refresh} />
+      <NewRecipeModal />
       <ConfirmPopup
         open={pendingDeleteId !== null}
         question={

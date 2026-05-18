@@ -36,6 +36,23 @@ const items = [
       </svg>
     ),
   },
+  {
+    href: "/recepti",
+    label: "Recepti",
+    icon: (
+      <svg
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        viewBox="0 0 24 24"
+        width={20}
+        height={20}
+      >
+        <path d="M4 4h12a4 4 0 0 1 0 8h-1v8H4z" />
+        <path d="M15 8h2" />
+      </svg>
+    ),
+  },
 ];
 
 export function BottomNav() {
