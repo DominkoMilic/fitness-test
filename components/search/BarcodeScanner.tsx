@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
-import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { lookupBarcode } from "@/lib/api/openFoodFacts";
+import { useBarcodeScanner, type ScannerStatus } from "@/hooks/useBarcodeScanner";
+import { scanLog } from "@/lib/barcode/diagnostics";
 import type { FoodEntry } from "@/types/app";
 
 type Props = {
@@ -11,124 +11,125 @@ type Props = {
   onResult: (food: FoodEntry) => void;
 };
 
-const FORMATS = [
-  BarcodeFormat.EAN_13,
-  BarcodeFormat.EAN_8,
-  BarcodeFormat.UPC_A,
-  BarcodeFormat.UPC_E,
-  BarcodeFormat.CODE_128,
-  BarcodeFormat.CODE_39,
-  BarcodeFormat.ITF,
-];
+const STATUS_MSG: Record<ScannerStatus, string> = {
+  idle: "",
+  starting: "Pokrećem kameru...",
+  scanning: "Usmjeri kameru prema barkodu...",
+  "permission-denied":
+    "Kamera odbijena. Dozvoli pristup u postavkama preglednika.",
+  "no-camera": "Kamera nije pronađena.",
+  "camera-busy": "Kamera zauzeta drugom aplikacijom.",
+  insecure: "Potreban HTTPS za pristup kameri.",
+  unsupported: "Skener nije podržan u ovom pregledniku.",
+  error: "Kamera nije dostupna.",
+};
 
 export function BarcodeScanner({ open, onClose, onResult }: Props) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const controlsRef = useRef<IScannerControls | null>(null);
-  const busyRef = useRef(false);
-  const [status, setStatus] = useState("Usmjeri kameru prema barkodu...");
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupMsg, setLookupMsg] = useState<string | null>(null);
+  const inFlightRef = useRef<string | null>(null);
 
+  // Reset transient lookup state every time the scanner opens.
   useEffect(() => {
-    if (!open) return;
+    if (open) {
+      setLookupBusy(false);
+      setLookupMsg(null);
+      inFlightRef.current = null;
+    }
+  }, [open]);
 
-    let cancelled = false;
-    const video = videoRef.current;
-    if (!video) return;
-
-    const hints = new Map();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, FORMATS);
-    hints.set(DecodeHintType.TRY_HARDER, true);
-
-    const reader = new BrowserMultiFormatReader(hints, {
-      delayBetweenScanAttempts: 150,
-      delayBetweenScanSuccess: 800,
-    });
-
-    const constraints: MediaStreamConstraints = {
-      audio: false,
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-    };
-
-    (async () => {
+  const onCode = useCallback(
+    async (code: string) => {
+      if (lookupBusy || inFlightRef.current === code) return;
+      inFlightRef.current = code;
+      setLookupBusy(true);
+      setLookupMsg(`Tražim: ${code}...`);
       try {
-        const controls = await reader.decodeFromConstraints(
-          constraints,
-          video,
-          async (result) => {
-            if (!result || busyRef.current || cancelled) return;
-            busyRef.current = true;
-            const code = result.getText();
-            setStatus(`Tražim: ${code}...`);
-            try {
-              const food = await lookupBarcode(code);
-              if (cancelled) return;
-              if (food) {
-                setStatus(`Pronađeno: ${food.name}`);
-                onResult(food);
-                onClose();
-              } else {
-                setStatus("Proizvod nije u bazi.");
-                busyRef.current = false;
-              }
-            } catch {
-              setStatus("Greška pri dohvatu.");
-              busyRef.current = false;
-            }
-          }
-        );
-        if (cancelled) {
-          controls.stop();
+        const food = await lookupBarcode(code);
+        if (food) {
+          scanLog("lookup-success", { code, name: food.name });
+          onResult(food);
+          onClose();
           return;
         }
-        controlsRef.current = controls;
-
-        // iOS Safari sometimes won't autoplay without explicit play() call.
-        try {
-          await video.play();
-        } catch {}
-      } catch (e) {
-        const err = e as DOMException;
-        if (err?.name === "NotAllowedError") {
-          setStatus("Kamera odbijena. Dozvoli pristup u postavkama preglednika.");
-        } else if (err?.name === "NotFoundError") {
-          setStatus("Kamera nije pronađena.");
-        } else if (err?.name === "NotReadableError") {
-          setStatus("Kamera zauzeta drugom aplikacijom.");
-        } else if (window.isSecureContext === false) {
-          setStatus("Potreban HTTPS za pristup kameri.");
-        } else {
-          setStatus("Kamera nije dostupna.");
-        }
+        scanLog("lookup-not-found", { code });
+        setLookupMsg(`Proizvod nije u bazi (${code}).`);
+      } catch (err) {
+        scanLog("error", {
+          source: "lookup",
+          err: (err as Error).message,
+        });
+        setLookupMsg("Greška pri dohvatu.");
+      } finally {
+        inFlightRef.current = null;
+        setLookupBusy(false);
       }
-    })();
+    },
+    [lookupBusy, onResult, onClose],
+  );
 
-    return () => {
-      cancelled = true;
-      busyRef.current = false;
-      controlsRef.current?.stop();
-      controlsRef.current = null;
-    };
-  }, [open, onClose, onResult]);
+  const {
+    videoRef,
+    status,
+    torchSupported,
+    torchOn,
+    toggleTorch,
+    adapterKind,
+  } = useBarcodeScanner({ open, onCode });
 
   if (!open) return null;
+
+  const display = lookupMsg ?? STATUS_MSG[status] ?? "";
+  const showDebug = process.env.NODE_ENV !== "production" && adapterKind;
+
   return (
     <div className="p-5">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        className="w-full rounded-xl bg-black"
-      />
+      <div className="relative">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full rounded-xl bg-black aspect-4/3 object-cover"
+        />
+        {/* Centered scan region overlay — purely visual alignment guide. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+        >
+          <div
+            className="rounded-xl border-2"
+            style={{
+              width: "78%",
+              height: "30%",
+              borderColor: "var(--color-orange)",
+              boxShadow: "0 0 0 9999px rgba(0,0,0,0.35)",
+            }}
+          />
+        </div>
+        {torchSupported && (
+          <button
+            onClick={toggleTorch}
+            className="absolute top-2 right-2 px-3 py-1.5 rounded-full text-[11px] font-bold bg-black/60 text-white"
+          >
+            {torchOn ? "Bljeskalica isključi" : "Bljeskalica"}
+          </button>
+        )}
+      </div>
       <div
-        className="mt-4 p-4 rounded-xl text-center text-sm bg-[var(--color-bg)]"
+        className="mt-4 p-4 rounded-xl text-center text-sm bg-bg"
         style={{ color: "var(--color-muted)" }}
       >
-        {status}
+        {display}
       </div>
+      {showDebug && (
+        <div
+          className="mt-2 text-center text-[11px]"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Adapter: {adapterKind} · status: {status}
+        </div>
+      )}
     </div>
   );
 }
