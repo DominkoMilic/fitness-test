@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input } from "@/components/ui/Input";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -23,12 +22,10 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
   const user = useAuthStore((s) => s.user);
   const offset = useDayStore((s) => s.offset);
   const [target, setTarget] = useState<MealKey>("dorucak");
-  const [portions, setPortions] = useState<number>(1);
 
   useEffect(() => {
     if (modal === "addRecipe" && payload) {
       setTarget(payload.recipe.meal);
-      setPortions(1);
     }
   }, [modal, payload]);
 
@@ -37,16 +34,14 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
   const people = Math.max(1, Number(recipe.people) || 1);
   const totalKcal = recipe.items.reduce((s, i) => s + i.kcal, 0);
   const perKcal = totalKcal / people;
-  const myKcal = perKcal * Math.max(1, portions);
 
   const onConfirm = async () => {
-    const port = Math.max(1, Math.floor(portions));
     closeModal();
     showToast(
-      `Dodano ${recipe.items.length} namirnica u ${MEAL_NAMES[target]} (${port}/${people} porcija)`,
+      `Dodana 1 porcija u ${MEAL_NAMES[target]} (${Math.round(perKcal)} kcal)`,
     );
     const ds = dateForOffset(offset);
-    const ratio = port / people;
+    const ratio = 1 / people;
     await insertLogs(
       recipe.items.map((it) => ({
         user_id: user.id,
@@ -74,7 +69,10 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
       </div>
       <div className="text-[13px] mb-4" style={{ color: "var(--color-muted)" }}>
         {recipe.items.length} namirnica · {Math.round(totalKcal)} kcal ukupno ·{" "}
-        za {people} {people === 1 ? "osobu" : "osoba"}
+        za {people} {people === 1 ? "osobu" : "osoba"} ·{" "}
+        <span style={{ color: "var(--color-orange)", fontWeight: 700 }}>
+          {Math.round(perKcal)} kcal po osobi
+        </span>
       </div>
 
       <div
@@ -92,34 +90,6 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
         wrapperClassName="mb-4"
         ariaLabel="Obrok"
       />
-
-      <div
-        className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
-        style={{ color: "var(--color-muted)" }}
-      >
-        Koliko porcija jedeš?
-      </div>
-      <Input
-        type="number"
-        inputMode="numeric"
-        min={1}
-        max={people}
-        value={portions === 0 ? "" : portions}
-        onChange={(e) => {
-          const n = parseInt(e.target.value, 10);
-          setPortions(Number.isFinite(n) && n > 0 ? n : 1);
-        }}
-        className="mb-2"
-      />
-      <div
-        className="text-[12px] mb-4 px-1"
-        style={{ color: "var(--color-muted)" }}
-      >
-        Po porciji: {Math.round(perKcal)} kcal · Tvoj unos:{" "}
-        <span style={{ color: "var(--color-orange)", fontWeight: 700 }}>
-          {Math.round(myKcal)} kcal
-        </span>
-      </div>
 
       <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] bg-white border-t border-border/70">
         <div className="flex gap-2.5">
