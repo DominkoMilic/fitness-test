@@ -176,7 +176,7 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
     }
     const people = parseInt(peopleStr, 10);
     if (!Number.isFinite(people) || people < 1) {
-      showToast("Unesi broj osoba (najmanje 1)");
+      showToast("Unesi broj porcija (najmanje 1)");
       return;
     }
     if (items.some((it) => (it.pieces ?? it.grams) <= 0 || it.grams <= 0)) {
@@ -244,7 +244,7 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
       </div>
       <div className="text-[13px] mb-4" style={{ color: "var(--color-muted)" }}>
         {items.length} namirnica · {Math.round(totalKcal)} kcal ukupno ·{" "}
-        {Math.round(perKcal)} kcal po osobi
+        {Math.round(perKcal)} kcal po porciji
       </div>
 
       <div
@@ -280,7 +280,7 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
         className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
         style={{ color: "var(--color-muted)" }}
       >
-        Broj osoba
+        Broj porcija
       </div>
       <Input
         type="number"
@@ -304,7 +304,7 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
             borderColor: "rgba(255,138,0,0.35)",
           }}
         >
-          Unesi barem 1 osobu
+          Unesi barem 1 porciju
         </div>
       )}
 

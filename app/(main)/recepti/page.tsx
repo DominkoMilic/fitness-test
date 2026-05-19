@@ -69,8 +69,8 @@ export default function ReceptiPage() {
             Nema spremljenih recepata.
             <br />
             <br />
-            Dodaj novi recept klikom na gumb &quot;Dodaj novi recept&quot; iznad.
-            Recepti dijele ukupne nutrijente na broj osoba koje jedu obrok.
+            Dodaj novi recept klikom na gumb &quot;Dodaj novi recept&quot;
+            iznad. Recepti dijele ukupne nutrijente na broj porcija.
           </div>
         ) : (
           list.map((r) => (
