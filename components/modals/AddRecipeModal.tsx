@@ -69,9 +69,9 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
       </div>
       <div className="text-[13px] mb-4" style={{ color: "var(--color-muted)" }}>
         {recipe.items.length} namirnica · {Math.round(totalKcal)} kcal ukupno ·{" "}
-        za {people} {people === 1 ? "osobu" : "osoba"} ·{" "}
+        za {people} {people === 1 ? "porciju" : "porcije"} ·{" "}
         <span style={{ color: "var(--color-orange)", fontWeight: 700 }}>
-          {Math.round(perKcal)} kcal po osobi
+          {Math.round(perKcal)} kcal po porciji
         </span>
       </div>
 

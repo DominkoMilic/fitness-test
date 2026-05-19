@@ -34,14 +34,14 @@ export function RecipeCard({ recipe, onAdd, onEdit, onDelete }: Props) {
             style={{ color: "var(--color-muted)" }}
           >
             {MEAL_NAMES[recipe.meal]} · {Math.round(totalKcal)} kcal · {people}{" "}
-            {people === 1 ? "osoba" : people < 5 ? "osobe" : "osoba"} ·{" "}
+            {people === 1 ? "porcija" : people < 5 ? "porcije" : "porcija"} ·{" "}
             {recipe.items.length} namirnica
           </div>
           <div
             className="text-[11px] mt-0.5 font-semibold"
             style={{ color: "var(--color-orange)" }}
           >
-            Po osobi: {Math.round(perKcal)} kcal · P: {Math.round(perP)}g
+            Po porciji: {Math.round(perKcal)} kcal · P: {Math.round(perP)}g
           </div>
         </div>
         {(onAdd || onEdit || onDelete) && (
