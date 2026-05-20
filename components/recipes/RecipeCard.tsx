@@ -16,8 +16,14 @@ export function RecipeCard({ recipe, onAdd, onEdit, onDelete }: Props) {
     recipe.items.reduce((s, i) => s + (Number(i.kcal) || 0), 0);
   const totalP =
     recipe.total_p ?? recipe.items.reduce((s, i) => s + (Number(i.p) || 0), 0);
+  const totalU =
+    recipe.total_u ?? recipe.items.reduce((s, i) => s + (Number(i.u) || 0), 0);
+  const totalM =
+    recipe.total_m ?? recipe.items.reduce((s, i) => s + (Number(i.m) || 0), 0);
   const perKcal = totalKcal / people;
   const perP = totalP / people;
+  const perU = totalU / people;
+  const perM = totalM / people;
 
   return (
     <div className="kf-card bg-white rounded-2xl mb-2.5 shadow-sm overflow-hidden">
@@ -41,7 +47,14 @@ export function RecipeCard({ recipe, onAdd, onEdit, onDelete }: Props) {
             className="text-[11px] mt-0.5 font-semibold"
             style={{ color: "var(--color-orange)" }}
           >
-            Po porciji: {Math.round(perKcal)} kcal · P: {Math.round(perP)}g
+            Po porciji: {Math.round(perKcal)} kcal
+          </div>
+          <div
+            className="text-[11px] font-semibold"
+            style={{ color: "var(--color-orange)" }}
+          >
+            P: {Math.round(perP)}g · U: {Math.round(perU)}g · M:{" "}
+            {Math.round(perM)}g
           </div>
         </div>
         {(onAdd || onEdit || onDelete) && (

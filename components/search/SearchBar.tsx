@@ -4,9 +4,11 @@ type Props = {
   value: string;
   onChange: (v: string) => void;
   onScan: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 };
 
-export function SearchBar({ value, onChange, onScan }: Props) {
+export function SearchBar({ value, onChange, onScan, onFocus, onBlur }: Props) {
   return (
     <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white border-b border-border sticky top-14.5 z-5">
       <div className="flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border-2 border-orange bg-bg">
@@ -24,6 +26,8 @@ export function SearchBar({ value, onChange, onScan }: Props) {
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={onFocus}
+          onBlur={onBlur}
           placeholder="Pretraži namirnicu..."
           autoCorrect="off"
           autoComplete="off"

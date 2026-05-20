@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/Input";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -22,12 +23,18 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
   const user = useAuthStore((s) => s.user);
   const offset = useDayStore((s) => s.offset);
   const [target, setTarget] = useState<MealKey>("dorucak");
+  const [portionsStr, setPortionsStr] = useState<string>("1");
+  const [lastRecipeId, setLastRecipeId] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (modal === "addRecipe" && payload) {
-      setTarget(payload.recipe.meal);
-    }
-  }, [modal, payload]);
+  // Reset transient fields when the modal opens for a new recipe. Mirrors the
+  // NewRecipeModal pattern (render-phase init, not a useEffect cascade).
+  if (modal === "addRecipe" && payload && lastRecipeId !== payload.recipe.id) {
+    setLastRecipeId(payload.recipe.id);
+    setTarget(payload.recipe.meal);
+    setPortionsStr("1");
+  } else if (modal !== "addRecipe" && lastRecipeId !== null) {
+    setLastRecipeId(null);
+  }
 
   if (modal !== "addRecipe" || !payload || !user) return null;
   const recipe = payload.recipe;
@@ -35,13 +42,38 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
   const totalKcal = recipe.items.reduce((s, i) => s + i.kcal, 0);
   const perKcal = totalKcal / people;
 
+  const portionsParsed = parseFloat(portionsStr.replace(",", "."));
+  const portionsFinite = Number.isFinite(portionsParsed);
+  const portionsEmpty = portionsStr.trim() === "";
+  const portionsZero = !portionsEmpty && portionsFinite && portionsParsed <= 0;
+  const portionsOver =
+    !portionsEmpty && portionsFinite && portionsParsed > people;
+  const portionsValid =
+    portionsFinite && portionsParsed > 0 && portionsParsed <= people;
+
+  const previewKcal = portionsValid ? perKcal * portionsParsed : 0;
+
   const onConfirm = async () => {
+    if (portionsEmpty) {
+      showToast("Unesi broj porcija");
+      return;
+    }
+    if (portionsZero) {
+      showToast("Broj porcija mora biti veći od 0");
+      return;
+    }
+    if (portionsOver) {
+      showToast(`Maksimalni broj porcija je ${people}`);
+      return;
+    }
+    if (!portionsValid) return;
+    const portions = portionsParsed;
     closeModal();
     showToast(
-      `Dodana 1 porcija u ${MEAL_NAMES[target]} (${Math.round(perKcal)} kcal)`,
+      `Dodano ${portions} ${portions === 1 ? "porcija" : "porcije"} u ${MEAL_NAMES[target]} (${Math.round(perKcal * portions)} kcal)`,
     );
     const ds = dateForOffset(offset);
-    const ratio = 1 / people;
+    const ratio = portions / people;
     await insertLogs(
       recipe.items.map((it) => ({
         user_id: user.id,
@@ -91,6 +123,75 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
         ariaLabel="Obrok"
       />
 
+      <div
+        className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
+        style={{ color: "var(--color-muted)" }}
+      >
+        Koliko ste porcija pojeli?
+      </div>
+      <Input
+        type="text"
+        inputMode="decimal"
+        value={portionsStr}
+        onChange={(e) => setPortionsStr(e.target.value)}
+        onFocus={(e) => {
+          const input = e.currentTarget;
+          setTimeout(() => input.select(), 0);
+        }}
+        placeholder="npr. 1"
+        className={
+          portionsEmpty || portionsZero || portionsOver ? "mb-1" : "mb-2"
+        }
+      />
+
+      {portionsEmpty && (
+        <div
+          className="mb-4 px-3 py-1.5 rounded-full inline-flex text-[11px] font-bold border"
+          style={{
+            color: "var(--color-orange)",
+            background: "rgba(255,138,0,0.08)",
+            borderColor: "rgba(255,138,0,0.35)",
+          }}
+        >
+          Unesi broj porcija
+        </div>
+      )}
+      {portionsZero && (
+        <div
+          className="mb-4 px-3 py-1.5 rounded-full inline-flex text-[11px] font-bold border"
+          style={{
+            color: "var(--color-orange)",
+            background: "rgba(255,138,0,0.08)",
+            borderColor: "rgba(255,138,0,0.35)",
+          }}
+        >
+          Broj porcija mora biti veći od 0
+        </div>
+      )}
+      {portionsOver && (
+        <div
+          className="mb-4 px-3 py-1.5 rounded-full inline-flex text-[11px] font-bold border"
+          style={{
+            color: "var(--color-orange)",
+            background: "rgba(255,138,0,0.08)",
+            borderColor: "rgba(255,138,0,0.35)",
+          }}
+        >
+          Maksimalni broj porcija je {people}
+        </div>
+      )}
+      {portionsValid && (
+        <div
+          className="mb-4 text-[12px] px-1"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Tvoj unos:{" "}
+          <span style={{ color: "var(--color-orange)", fontWeight: 700 }}>
+            {Math.round(previewKcal)} kcal
+          </span>
+        </div>
+      )}
+
       <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] bg-white border-t border-border/70">
         <div className="flex gap-2.5">
           <button
@@ -102,7 +203,8 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
           </button>
           <button
             onClick={onConfirm}
-            className="flex-2 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[15px] font-bold"
+            disabled={!portionsValid}
+            className="flex-2 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[15px] font-bold disabled:opacity-60"
           >
             Dodaj u dnevnik
           </button>
