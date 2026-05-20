@@ -38,6 +38,7 @@ export default function SearchPage() {
 
   const [q, setQ] = useState("");
   const [scan, setScan] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const { foods, loading: foodsLoading, addLocal } = useFoods();
   const user = useAuthStore((s) => s.user);
   const {
@@ -159,16 +160,33 @@ export default function SearchPage() {
         </span>
         <span aria-hidden="true" />
       </div>
-      <SearchBar value={q} onChange={setQ} onScan={() => setScan((v) => !v)} />
-      <div className="px-5 pt-1 pb-2">
-        <button
-          onClick={() => openModal("manualKcal", { defaultMeal: presetMeal })}
-          className="w-full py-2.5 rounded-xl border-[1.5px] border-dashed border-border bg-white text-[13px] font-bold inline-flex items-center justify-center gap-2 hover:bg-bg active:bg-bg/60"
-          style={{ color: "var(--color-navy)" }}
-        >
-          <span aria-hidden="true">＋</span>
-          Ručno unesi kalorije
-        </button>
+      <SearchBar
+        value={q}
+        onChange={setQ}
+        onScan={() => setScan((v) => !v)}
+        onFocus={() => setSearchFocused(true)}
+        onBlur={() => setSearchFocused(false)}
+      />
+      <div
+        className="overflow-hidden transition-all duration-300 ease-out"
+        style={{
+          maxHeight: searchFocused ? 0 : 80,
+          opacity: searchFocused ? 0 : 1,
+          transform: searchFocused ? "translateY(-4px)" : "translateY(0)",
+        }}
+        aria-hidden={searchFocused}
+      >
+        <div className="px-5 pt-1 pb-2">
+          <button
+            onClick={() => openModal("manualKcal", { defaultMeal: presetMeal })}
+            tabIndex={searchFocused ? -1 : 0}
+            className="w-full py-2.5 rounded-xl border-[1.5px] border-dashed border-border bg-white text-[13px] font-bold inline-flex items-center justify-center gap-2 hover:bg-bg active:bg-bg/60"
+            style={{ color: "var(--color-navy)" }}
+          >
+            <span aria-hidden="true">＋</span>
+            Ručno unesi kalorije
+          </button>
+        </div>
       </div>
       <BarcodeScanner
         open={scan}
