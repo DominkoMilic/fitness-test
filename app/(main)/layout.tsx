@@ -17,6 +17,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     if (hydrated && !user) router.replace("/login");
   }, [hydrated, user, router]);
 
+  // Re-validate the cookie session whenever the tab regains focus/visibility,
+  // so an admin-cancelled or expired code logs the user out without a manual
+  // refresh.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onFocus = () => {
+      if (document.visibilityState === "visible") autoLogin();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [autoLogin]);
+
   if (!hydrated || !user) return null;
 
   return (
