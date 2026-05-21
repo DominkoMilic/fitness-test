@@ -10,7 +10,10 @@ type Props = {
   kcal: number;
   isToday: boolean;
   saving: boolean;
+  /** Future day — visually dimmed + non-editable. */
   disabled?: boolean;
+  /** Non-editable but rendered in full color (e.g. admin view). */
+  readOnly?: boolean;
   onSaveWeight: (value: number | null) => Promise<void> | void;
   onSaveSteps: (value: number | null) => Promise<void> | void;
 };
@@ -28,9 +31,11 @@ export function DayMetricsCard({
   isToday,
   saving,
   disabled = false,
+  readOnly = false,
   onSaveWeight,
   onSaveSteps,
 }: Props) {
+  const locked = disabled || readOnly;
   const [weightStr, setWeightStr] = useState(fmtNumber(weightKg));
   const [stepsStr, setStepsStr] = useState(fmtNumber(steps));
 
@@ -136,7 +141,7 @@ export function DayMetricsCard({
           onBlur={commitWeight}
           placeholder="—"
           inputMode="decimal"
-          readOnly={disabled}
+          readOnly={locked}
         />
         <Field
           label="Kalorije"
@@ -152,7 +157,7 @@ export function DayMetricsCard({
           onBlur={commitSteps}
           placeholder="—"
           inputMode="numeric"
-          readOnly={disabled}
+          readOnly={locked}
         />
       </div>
     </div>

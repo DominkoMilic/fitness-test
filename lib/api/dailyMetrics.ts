@@ -36,6 +36,26 @@ export async function listWeightHistory(): Promise<DailyMetricsApi[]> {
   return body.data ?? [];
 }
 
+export async function listDailyMetricsAsAdmin(
+  code: string,
+  from: string,
+  to: string,
+): Promise<DailyMetricsApi[]> {
+  const body = await jsonFetch<{ data: DailyMetricsApi[] }>(
+    `/api/admin/users/${encodeURIComponent(code)}/daily-metrics?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  );
+  return body.data ?? [];
+}
+
+export async function listWeightHistoryAsAdmin(
+  code: string,
+): Promise<DailyMetricsApi[]> {
+  const body = await jsonFetch<{ data: DailyMetricsApi[] }>(
+    `/api/admin/users/${encodeURIComponent(code)}/daily-metrics`,
+  );
+  return body.data ?? [];
+}
+
 export async function upsertDailyMetric(patch: {
   date: string;
   weight_kg?: number | null;
