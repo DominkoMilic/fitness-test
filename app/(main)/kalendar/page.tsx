@@ -117,17 +117,29 @@ export default function KalendarPage() {
     }));
   }, [allRows]);
 
-  // Weekly arithmetic means (sum / 7) for the currently visible week.
+  // Weekly arithmetic means — divide by the number of days that actually have
+  // a value for that field (not a fixed /7). kcal counts a day when > 0.
   const weeklyMeans = useMemo(() => {
-    const sumKey = (k: "weight_kg" | "kcal" | "steps") =>
-      weekRows.reduce(
-        (s, r) => s + (typeof r[k] === "number" ? (r[k] as number) : 0),
-        0,
-      );
+    const avg = (
+      k: "weight_kg" | "steps",
+    ): number | null => {
+      const vals = weekRows
+        .map((r) => r[k])
+        .filter((v): v is number => typeof v === "number");
+      if (vals.length === 0) return null;
+      return vals.reduce((s, v) => s + v, 0) / vals.length;
+    };
+    const kcalVals = weekRows
+      .map((r) => r.kcal)
+      .filter((v) => typeof v === "number" && v > 0);
+    const kcalAvg =
+      kcalVals.length === 0
+        ? null
+        : kcalVals.reduce((s, v) => s + v, 0) / kcalVals.length;
     return {
-      weight: sumKey("weight_kg") / 7,
-      kcal: sumKey("kcal") / 7,
-      steps: sumKey("steps") / 7,
+      weight: avg("weight_kg"),
+      kcal: kcalAvg,
+      steps: avg("steps"),
     };
   }, [weekRows]);
 
@@ -216,9 +228,9 @@ function WeeklyMeansBlock({
   kcal,
   steps,
 }: {
-  weight: number;
-  kcal: number;
-  steps: number;
+  weight: number | null;
+  kcal: number | null;
+  steps: number | null;
 }) {
   return (
     <div className="kf-card mx-3 mb-3 bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -233,16 +245,16 @@ function WeeklyMeansBlock({
       <div className="grid grid-cols-3 gap-2 p-3">
         <Stat
           label="Težina"
-          value={weight > 0 ? `${formatKg(weight)} kg` : "—"}
+          value={weight != null ? `${formatKg(weight)} kg` : "—"}
         />
         <Stat
           label="Kalorije"
-          value={kcal > 0 ? `${Math.round(kcal)} kcal` : "—"}
+          value={kcal != null ? `${Math.round(kcal)} kcal` : "—"}
           accent
         />
         <Stat
           label="Koraci"
-          value={steps > 0 ? String(Math.round(steps)) : "—"}
+          value={steps != null ? String(Math.round(steps)) : "—"}
         />
       </div>
     </div>
