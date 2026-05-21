@@ -31,13 +31,15 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
-  if (!isIsoDate(from) || !isIsoDate(to)) {
+  const hasRange = from || to;
+
+  if (hasRange && (!isIsoDate(from) || !isIsoDate(to))) {
     return NextResponse.json(
       { error: "from/to required (YYYY-MM-DD)" },
       { status: 400 },
     );
   }
-  if (from > to) {
+  if (hasRange && from! > to!) {
     return NextResponse.json(
       { error: "from must be <= to" },
       { status: 400 },
@@ -46,19 +48,40 @@ export async function GET(req: Request) {
 
   const supa = getSupabaseAdmin();
 
+  // ====== All-time mode: just return sparse weight history (no kcal join). ======
+  if (!hasRange) {
+    const { data: rows, error } = await supa
+      .from("daily_metrics")
+      .select("date, weight_kg, steps")
+      .eq("user_id", uid)
+      .not("weight_kg", "is", null)
+      .order("date", { ascending: true });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    const data: DailyMetricsApi[] = (rows ?? []).map((r) => ({
+      date: r.date,
+      weight_kg: r.weight_kg == null ? null : Number(r.weight_kg),
+      steps: r.steps == null ? null : Number(r.steps),
+      kcal: 0,
+    }));
+    return NextResponse.json({ data });
+  }
+
+  // ====== Range mode: dense day-by-day with computed kcal sums. ======
   const [metricsRes, logsRes] = await Promise.all([
     supa
       .from("daily_metrics")
       .select("date, weight_kg, steps")
       .eq("user_id", uid)
-      .gte("date", from)
-      .lte("date", to),
+      .gte("date", from!)
+      .lte("date", to!),
     supa
       .from("food_logs")
       .select("date, kcal")
       .eq("user_id", uid)
-      .gte("date", from)
-      .lte("date", to),
+      .gte("date", from!)
+      .lte("date", to!),
   ]);
 
   if (metricsRes.error) {
@@ -83,14 +106,11 @@ export async function GET(req: Request) {
   >();
   for (const row of metricsRes.data ?? []) {
     metricByDate.set(row.date, {
-      weight_kg:
-        row.weight_kg == null ? null : Number(row.weight_kg),
+      weight_kg: row.weight_kg == null ? null : Number(row.weight_kg),
       steps: row.steps == null ? null : Number(row.steps),
     });
   }
 
-  // Build a continuous, dense range from..to (inclusive) so the client gets
-  // an entry for every day even when DB has no row yet.
   const data: DailyMetricsApi[] = [];
   const start = new Date(`${from}T00:00:00Z`);
   const end = new Date(`${to}T00:00:00Z`);

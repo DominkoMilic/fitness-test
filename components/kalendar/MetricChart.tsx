@@ -87,14 +87,6 @@ export function MetricChart({
         >
           {title}
         </span>
-        <span
-          className="text-[11px] font-semibold"
-          style={{ color: "var(--color-muted)" }}
-        >
-          {hasData
-            ? `Tjedna sredina: ${formatValue(values.reduce((s, v) => s + v, 0) / points.length)} ${unit}`
-            : "—"}
-        </span>
       </div>
       <div className="p-2.5">
         <svg

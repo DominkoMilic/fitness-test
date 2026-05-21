@@ -1,19 +1,45 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useDailyMetrics } from "@/hooks/useDailyMetrics";
 import { useUIStore } from "@/store/useUIStore";
+import { useDailyMetrics } from "@/hooks/useDailyMetrics";
+import { useWeightHistory } from "@/hooks/useWeightHistory";
 import { WeekNav } from "@/components/kalendar/WeekNav";
 import { DayMetricsCard } from "@/components/kalendar/DayMetricsCard";
 import { MetricChart } from "@/components/kalendar/MetricChart";
 import { InlineLoading } from "@/components/ui/Loading";
 import {
-  WEEKDAY_SHORT_HR,
   addDays,
+  formatDayShortHR,
   formatLocalISO,
   startOfWeekMonday,
   weekDays,
 } from "@/lib/utils/week";
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+function formatKg(n: number): string {
+  return (Math.round(n * 10) / 10).toFixed(1);
+}
+
+function formatPct(n: number): string {
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${(Math.round(n * 10) / 10).toFixed(1)}%`;
+}
+
+// Sparse labels on the all-time chart — first, last, and ~3 inside.
+function chartLabels(rows: { date: string }[]): string[] {
+  if (rows.length === 0) return [];
+  if (rows.length === 1) return [formatDayShortHR(new Date(rows[0]!.date))];
+  const anchors = new Set<number>([0, rows.length - 1]);
+  const inner = Math.min(3, Math.max(0, rows.length - 2));
+  for (let i = 1; i <= inner; i++) {
+    anchors.add(Math.round((i * (rows.length - 1)) / (inner + 1)));
+  }
+  return rows.map((r, i) =>
+    anchors.has(i) ? formatDayShortHR(new Date(r.date)) : "",
+  );
+}
 
 export default function KalendarPage() {
   const user = useAuthStore((s) => s.user);
@@ -27,10 +53,21 @@ export default function KalendarPage() {
   const to = formatLocalISO(days[6]!);
   const todayIso = formatLocalISO(new Date());
 
-  const { rows, loading, save } = useDailyMetrics(user?.id, from, to);
+  const {
+    rows: weekRows,
+    loading: weekLoading,
+    save,
+  } = useDailyMetrics(user?.id, from, to);
+
+  const {
+    rows: allRows,
+    loading: allLoading,
+    refresh: refreshHistory,
+  } = useWeightHistory(user?.id);
+
   const [savingIso, setSavingIso] = useState<string | null>(null);
 
-  const byDate = new Map(rows.map((r) => [r.date, r]));
+  const byDate = new Map(weekRows.map((r) => [r.date, r]));
 
   const goPrev = () => setWeekStart((d) => addDays(d, -7));
   const goNext = () => setWeekStart((d) => addDays(d, 7));
@@ -43,6 +80,10 @@ export default function KalendarPage() {
     setSavingIso(iso);
     try {
       await save({ date: iso, ...patch });
+      // Weight changes affect the all-time chart + stats block.
+      if (patch.weight_kg !== undefined) {
+        await refreshHistory();
+      }
     } catch (err) {
       const msg =
         err instanceof Error && err.message
@@ -54,21 +95,41 @@ export default function KalendarPage() {
     }
   };
 
-  // Chart point series. Use first 3 letters of weekday for x-axis labels.
-  const chartPoints = (kind: "weight" | "kcal" | "steps") =>
-    days.map((d, i) => {
-      const iso = formatLocalISO(d);
-      const r = byDate.get(iso);
-      let value: number | null = null;
-      if (r) {
-        if (kind === "weight") value = r.weight_kg;
-        else if (kind === "kcal") value = r.kcal > 0 ? r.kcal : null;
-        else value = r.steps;
-      }
-      return { label: WEEKDAY_SHORT_HR[i], value };
-    });
+  const stats = useMemo(() => {
+    const weights = allRows
+      .map((r) => r.weight_kg)
+      .filter((v): v is number => v != null);
+    if (weights.length === 0) {
+      return { first: null, current: null, delta: null, pct: null };
+    }
+    const first = weights[0]!;
+    const current = weights[weights.length - 1]!;
+    const delta = round1(current - first);
+    const pct = first === 0 ? null : round1(((current - first) / first) * 100);
+    return { first, current, delta, pct };
+  }, [allRows]);
 
-  const goal = user?.goal ?? null;
+  const chartPoints = useMemo(() => {
+    const labels = chartLabels(allRows);
+    return allRows.map((r, i) => ({
+      label: labels[i] ?? "",
+      value: r.weight_kg,
+    }));
+  }, [allRows]);
+
+  // Weekly arithmetic means (sum / 7) for the currently visible week.
+  const weeklyMeans = useMemo(() => {
+    const sumKey = (k: "weight_kg" | "kcal" | "steps") =>
+      weekRows.reduce(
+        (s, r) => s + (typeof r[k] === "number" ? (r[k] as number) : 0),
+        0,
+      );
+    return {
+      weight: sumKey("weight_kg") / 7,
+      kcal: sumKey("kcal") / 7,
+      steps: sumKey("steps") / 7,
+    };
+  }, [weekRows]);
 
   return (
     <>
@@ -95,60 +156,195 @@ export default function KalendarPage() {
         onToday={goToday}
       />
 
-      {loading ? (
+      {weekLoading ? (
+        <InlineLoading text="Pričekajte..." className="px-5" />
+      ) : (
+        <div className="pt-1">
+          {days.map((d) => {
+            const iso = formatLocalISO(d);
+            const r = byDate.get(iso);
+            return (
+              <DayMetricsCard
+                key={iso}
+                date={d}
+                iso={iso}
+                weightKg={r?.weight_kg ?? null}
+                steps={r?.steps ?? null}
+                kcal={r?.kcal ?? 0}
+                isToday={iso === todayIso}
+                saving={savingIso === iso}
+                onSaveWeight={(v) => saveField(iso, { weight_kg: v })}
+                onSaveSteps={(v) => saveField(iso, { steps: v })}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      <WeeklyMeansBlock
+        weight={weeklyMeans.weight}
+        kcal={weeklyMeans.kcal}
+        steps={weeklyMeans.steps}
+      />
+
+      {allLoading ? (
         <InlineLoading text="Pričekajte..." className="px-5" />
       ) : (
         <>
-          <div className="pt-1">
-            {days.map((d) => {
-              const iso = formatLocalISO(d);
-              const r = byDate.get(iso);
-              return (
-                <DayMetricsCard
-                  key={iso}
-                  date={d}
-                  iso={iso}
-                  weightKg={r?.weight_kg ?? null}
-                  steps={r?.steps ?? null}
-                  kcal={r?.kcal ?? 0}
-                  isToday={iso === todayIso}
-                  saving={savingIso === iso}
-                  onSaveWeight={(v) => saveField(iso, { weight_kg: v })}
-                  onSaveSteps={(v) => saveField(iso, { steps: v })}
-                />
-              );
-            })}
-          </div>
-
-          <div className="pt-3">
-            <MetricChart
-              title="Težina (kg)"
-              unit="kg"
-              color="var(--color-navy)"
-              points={chartPoints("weight")}
-              formatValue={(n) => (Math.round(n * 10) / 10).toFixed(1)}
-            />
-            <MetricChart
-              title="Kalorije (kcal)"
-              unit="kcal"
-              color="var(--color-orange)"
-              points={chartPoints("kcal")}
-              reference={
-                goal != null ? { value: goal, label: "Cilj" } : undefined
-              }
-              formatValue={(n) => String(Math.round(n))}
-            />
-            <MetricChart
-              title="Koraci"
-              unit=""
-              color="#1d9b6c"
-              points={chartPoints("steps")}
-              formatValue={(n) => String(Math.round(n))}
-            />
-          </div>
+          <MetricChart
+            title="Težina (kg)"
+            unit="kg"
+            color="var(--color-navy)"
+            points={chartPoints}
+            formatValue={(n) => formatKg(n)}
+          />
+          <StatsBlock
+            first={stats.first}
+            current={stats.current}
+            delta={stats.delta}
+            pct={stats.pct}
+          />
         </>
       )}
       <div className="h-6" />
     </>
+  );
+}
+
+function WeeklyMeansBlock({
+  weight,
+  kcal,
+  steps,
+}: {
+  weight: number;
+  kcal: number;
+  steps: number;
+}) {
+  return (
+    <div className="kf-card mx-3 mb-3 bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-3.5 py-2.5 border-b border-border">
+        <span
+          className="text-sm font-bold"
+          style={{ color: "var(--color-navy)" }}
+        >
+          Tjedna sredina
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 p-3">
+        <Stat
+          label="Težina"
+          value={weight > 0 ? `${formatKg(weight)} kg` : "—"}
+        />
+        <Stat
+          label="Kalorije"
+          value={kcal > 0 ? `${Math.round(kcal)} kcal` : "—"}
+          accent
+        />
+        <Stat
+          label="Koraci"
+          value={steps > 0 ? String(Math.round(steps)) : "—"}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StatsBlock({
+  first,
+  current,
+  delta,
+  pct,
+}: {
+  first: number | null;
+  current: number | null;
+  delta: number | null;
+  pct: number | null;
+}) {
+  const isLoss = delta != null && delta < 0;
+  const isGain = delta != null && delta > 0;
+  const changeColor = isLoss
+    ? "#1d9b6c"
+    : isGain
+      ? "#c0392b"
+      : "var(--color-muted)";
+  const changeLabel =
+    delta == null
+      ? "—"
+      : isLoss
+        ? "Izgubljeno"
+        : isGain
+          ? "Dobiveno"
+          : "Bez promjene";
+
+  return (
+    <div className="kf-card mx-3 mb-3 bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-3.5 py-2.5 border-b border-border">
+        <span
+          className="text-sm font-bold"
+          style={{ color: "var(--color-navy)" }}
+        >
+          Pregled
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 p-3">
+        <Stat
+          label="Početna težina"
+          value={first != null ? `${formatKg(first)} kg` : "—"}
+        />
+        <Stat
+          label={changeLabel}
+          value={renderDelta(delta, pct, changeColor)}
+        />
+        <Stat
+          label="Trenutna težina"
+          value={current != null ? `${formatKg(current)} kg` : "—"}
+          accent
+        />
+      </div>
+    </div>
+  );
+}
+
+function renderDelta(delta: number | null, pct: number | null, color: string) {
+  if (delta == null) return <span style={{ color }}>—</span>;
+  const abs = Math.abs(delta);
+  return (
+    <span style={{ color }}>
+      {abs === 0 ? "0" : formatKg(abs)} kg
+      {pct != null && abs !== 0 && (
+        <span className="block text-[10px] font-semibold mt-0.5">
+          {formatPct(pct)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <div className="bg-bg rounded-xl px-2.5 py-2.5 text-center">
+      <div
+        className="text-[9.5px] font-bold uppercase tracking-wider mb-1"
+        style={{ color: "var(--color-muted)" }}
+      >
+        {label}
+      </div>
+      <div
+        className="text-[15px] font-extrabold leading-tight"
+        style={{
+          color: accent ? "var(--color-orange)" : "var(--color-navy)",
+        }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }

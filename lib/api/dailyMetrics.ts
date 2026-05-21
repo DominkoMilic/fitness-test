@@ -28,6 +28,14 @@ export async function listDailyMetrics(
   return body.data ?? [];
 }
 
+// All-time sparse weight history (rows where weight_kg is set, ordered asc).
+export async function listWeightHistory(): Promise<DailyMetricsApi[]> {
+  const body = await jsonFetch<{ data: DailyMetricsApi[] }>(
+    `/api/me/daily-metrics`,
+  );
+  return body.data ?? [];
+}
+
 export async function upsertDailyMetric(patch: {
   date: string;
   weight_kg?: number | null;

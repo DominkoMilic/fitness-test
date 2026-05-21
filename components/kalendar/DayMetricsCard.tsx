@@ -75,9 +75,17 @@ export function DayMetricsCard({
 
   return (
     <div
-      className={`kf-card mx-3 mb-2.5 bg-white rounded-2xl shadow-sm overflow-hidden ${
-        isToday ? "ring-2 ring-orange/60" : ""
-      }`}
+      className="kf-card mx-3 mb-2.5 bg-white rounded-2xl shadow-sm overflow-hidden"
+      style={
+        isToday
+          ? {
+              // Inline box-shadow keeps the orange outline regardless of
+              // hover/focus styles applied by the global `kf-card` rules.
+              boxShadow:
+                "inset 0 0 0 2px var(--color-orange), 0 1px 2px rgba(0,0,0,0.04)",
+            }
+          : undefined
+      }
     >
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border">
         <div className="flex items-center gap-2">
