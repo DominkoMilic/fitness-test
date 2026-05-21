@@ -10,6 +10,7 @@ type Props = {
   kcal: number;
   isToday: boolean;
   saving: boolean;
+  disabled?: boolean;
   onSaveWeight: (value: number | null) => Promise<void> | void;
   onSaveSteps: (value: number | null) => Promise<void> | void;
 };
@@ -26,6 +27,7 @@ export function DayMetricsCard({
   kcal,
   isToday,
   saving,
+  disabled = false,
   onSaveWeight,
   onSaveSteps,
 }: Props) {
@@ -75,7 +77,9 @@ export function DayMetricsCard({
 
   return (
     <div
-      className="kf-card mx-3 mb-2.5 bg-white rounded-2xl shadow-sm overflow-hidden"
+      className={`kf-card mx-3 mb-2.5 bg-white rounded-2xl shadow-sm overflow-hidden ${
+        disabled ? "opacity-50" : ""
+      }`}
       style={
         isToday
           ? {
@@ -132,6 +136,7 @@ export function DayMetricsCard({
           onBlur={commitWeight}
           placeholder="—"
           inputMode="decimal"
+          readOnly={disabled}
         />
         <Field
           label="Kalorije"
@@ -147,6 +152,7 @@ export function DayMetricsCard({
           onBlur={commitSteps}
           placeholder="—"
           inputMode="numeric"
+          readOnly={disabled}
         />
       </div>
     </div>
@@ -187,8 +193,8 @@ function Field({
           className="text-sm font-bold leading-tight"
           style={{ color: "var(--color-navy)" }}
         >
-          {value}
-          {unit && value !== "—" && (
+          {value === "" ? "—" : value}
+          {unit && value !== "—" && value !== "" && (
             <span
               className="ml-1 text-[10px] font-semibold"
               style={{ color: "var(--color-muted)" }}

@@ -120,9 +120,7 @@ export default function KalendarPage() {
   // Weekly arithmetic means — divide by the number of days that actually have
   // a value for that field (not a fixed /7). kcal counts a day when > 0.
   const weeklyMeans = useMemo(() => {
-    const avg = (
-      k: "weight_kg" | "steps",
-    ): number | null => {
+    const avg = (k: "weight_kg" | "steps"): number | null => {
       const vals = weekRows
         .map((r) => r[k])
         .filter((v): v is number => typeof v === "number");
@@ -185,6 +183,7 @@ export default function KalendarPage() {
                 kcal={r?.kcal ?? 0}
                 isToday={iso === todayIso}
                 saving={savingIso === iso}
+                disabled={iso > todayIso}
                 onSaveWeight={(v) => saveField(iso, { weight_kg: v })}
                 onSaveSteps={(v) => saveField(iso, { steps: v })}
               />
@@ -203,6 +202,21 @@ export default function KalendarPage() {
         <InlineLoading text="Pričekajte..." className="px-5" />
       ) : (
         <>
+          <div className="px-5 pt-3 pb-2">
+            <div
+              className="text-[15px] font-extrabold"
+              style={{ color: "var(--color-navy)" }}
+            >
+              Pregled napretka
+            </div>
+            <div
+              className="text-[12px]"
+              style={{ color: "var(--color-muted)" }}
+            >
+              Početna, promjena i trenutna težina od prvog unosa do danas.
+            </div>
+          </div>
+
           <MetricChart
             title="Težina (kg)"
             unit="kg"
@@ -210,6 +224,7 @@ export default function KalendarPage() {
             points={chartPoints}
             formatValue={(n) => formatKg(n)}
           />
+
           <StatsBlock
             first={stats.first}
             current={stats.current}
@@ -239,7 +254,7 @@ function WeeklyMeansBlock({
           className="text-sm font-bold"
           style={{ color: "var(--color-navy)" }}
         >
-          Tjedna sredina
+          Pregled tjednih sredina
         </span>
       </div>
       <div className="grid grid-cols-3 gap-2 p-3">
@@ -317,12 +332,67 @@ function StatsBlock({
   );
 }
 
+function DeltaIcon({
+  kind,
+  color,
+}: {
+  kind: "down" | "up" | "equal";
+  color: string;
+}) {
+  if (kind === "equal") {
+    return (
+      <svg
+        width={14}
+        height={14}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={color}
+        strokeWidth={3}
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <path d="M5 9h14M5 15h14" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      width={14}
+      height={14}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {kind === "down" ? (
+        <>
+          <path d="M12 5v14" />
+          <path d="M5 12l7 7 7-7" />
+        </>
+      ) : (
+        <>
+          <path d="M12 19V5" />
+          <path d="M5 12l7-7 7 7" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 function renderDelta(delta: number | null, pct: number | null, color: string) {
   if (delta == null) return <span style={{ color }}>—</span>;
   const abs = Math.abs(delta);
+  const kind: "down" | "up" | "equal" =
+    delta < 0 ? "down" : delta > 0 ? "up" : "equal";
   return (
     <span style={{ color }}>
-      {abs === 0 ? "0" : formatKg(abs)} kg
+      <span className="inline-flex items-center justify-center gap-1">
+        <DeltaIcon kind={kind} color={color} />
+        <span>{abs === 0 ? "0" : formatKg(abs)} kg</span>
+      </span>
       {pct != null && abs !== 0 && (
         <span className="block text-[10px] font-semibold mt-0.5">
           {formatPct(pct)}
