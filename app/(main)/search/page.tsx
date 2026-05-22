@@ -11,6 +11,7 @@ import { BarcodeScanner } from "@/components/search/BarcodeScanner";
 import { AddFoodModal } from "@/components/modals/AddFoodModal";
 import { ManualKcalModal } from "@/components/modals/ManualKcalModal";
 import { useFoods } from "@/hooks/useFoods";
+import { useFoodSearch } from "@/hooks/useFoodSearch";
 import { useHistory } from "@/hooks/useHistory";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUIStore } from "@/store/useUIStore";
@@ -19,7 +20,6 @@ import { InlineLoading } from "@/components/ui/Loading";
 import { dateForOffset } from "@/lib/utils/date";
 import { insertLog, listLogs } from "@/lib/api/foodLogs";
 import { effectiveGrams, macroForGrams } from "@/lib/utils/macros";
-import { normalizeForSearch } from "@/lib/utils/normalize";
 import { MEAL_KEYS, MEAL_NAMES } from "@/lib/constants/meals";
 import type { FoodEntry } from "@/types/app";
 import type { MealKey } from "@/types/database";
@@ -51,13 +51,11 @@ export default function SearchPage() {
   const showToast = useUIStore((s) => s.showToast);
   const offset = useDayStore((s) => s.offset);
 
-  const filtered = useMemo(() => {
-    const norm = normalizeForSearch(q.trim());
-    if (!norm) return [];
-    return foods
-      .filter((f) => normalizeForSearch(f.name).includes(norm))
-      .slice(0, 25);
-  }, [q, foods]);
+  const { results: filtered } = useFoodSearch(foods, q, {
+    limit: 25,
+    minLength: 2,
+    debounceMs: 120,
+  });
 
   const historyItems = useMemo<HistoryListItem[]>(() => {
     const byId = new Map(foods.map((f) => [Number(f.id), f]));

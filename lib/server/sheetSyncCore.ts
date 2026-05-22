@@ -1,5 +1,6 @@
 import "server-only";
 import { parseCSV } from "@/lib/utils/csv";
+import { normalizeForSearch } from "@/lib/utils/normalize";
 import type { FoodInsert, FoodRow } from "@/types/database";
 import type {
   ApplyResult,
@@ -118,6 +119,10 @@ export function parseSheet(rawCsv: string): SheetParsedRow[] {
 
       const food: FoodInsert = {
         name,
+        // Defense-in-depth: DB trigger also fills this on insert/update,
+        // but we set it explicitly so the planner / diff sees the canonical
+        // value and so any path that bypasses the trigger still gets it.
+        normalized_name: normalizeForSearch(name),
         category: pickValue(row, ["Kategorija", "Category"]).trim() || null,
         kcal_per_100g: toNum(
           pickValue(row, ["kcal/100g", "kcal", "kcal100g", "kalorije"]),

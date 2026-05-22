@@ -117,6 +117,7 @@ export type UserActivityRow = {
 export type FoodRow = {
   id: number;
   name: string;
+  normalized_name: string;
   category: string | null;
   kcal_per_100g: number;
   protein: number;
@@ -133,12 +134,15 @@ export type FoodRow = {
 };
 export type FoodInsert = Omit<
   FoodRow,
-  "id" | "created_at" | "has_cup" | "has_spoons"
+  "id" | "created_at" | "has_cup" | "has_spoons" | "normalized_name"
 > & {
   id?: number;
   created_at?: string;
   has_cup?: boolean;
   has_spoons?: boolean;
+  // Optional in TS — DB trigger fills it if omitted. Service layer still
+  // sets it explicitly so cached rows always have it.
+  normalized_name?: string;
 };
 
 export type FoodLogRow = {
