@@ -37,6 +37,30 @@ const items = [
     ),
   },
   {
+    href: "/recepti",
+    label: "Recepti",
+    icon: (
+      <svg
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        viewBox="0 0 24 24"
+        width={20}
+        height={20}
+      >
+        {/* Fork */}
+        <path d="M7 3v7" />
+        <path d="M5 3v4a2 2 0 0 0 4 0V3" />
+        <path d="M7 10v11" />
+        {/* Knife */}
+        <path d="M17 3c-2 1.5-3 4-3 6.5 0 1.5 1 2.5 3 2.5" />
+        <path d="M17 3v18" />
+      </svg>
+    ),
+  },
+  {
     href: "/kalendar",
     label: "Kalendar",
     icon: (

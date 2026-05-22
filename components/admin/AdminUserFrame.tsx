@@ -14,7 +14,7 @@ type Props = {
   code: string;
   user: AccessCodeRow | null;
   loading: boolean;
-  activeTab: "dashboard" | "favorites" | "kalendar";
+  activeTab: "dashboard" | "favorites" | "recipes" | "kalendar";
   children: ReactNode;
 };
 
@@ -154,6 +154,11 @@ export function AdminUserFrame({
       href: `/admin/users/${user.code}/kalendar`,
       label: "Kalendar",
       key: "kalendar" as const,
+    },
+    {
+      href: `/admin/users/${user.code}/recepti`,
+      label: "Recepti",
+      key: "recipes" as const,
     },
   ];
 

@@ -14,6 +14,9 @@ export type ModalKind =
   | "addFav"
   | "editFav"
   | "newFav"
+  | "addRecipe"
+  | "editRecipe"
+  | "newRecipe"
   | "syncPreview"
   | "manualKcal";
 

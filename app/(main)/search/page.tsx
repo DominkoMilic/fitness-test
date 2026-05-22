@@ -70,6 +70,7 @@ export default function SearchPage() {
   }, [foods, entries]);
 
   const onAdded = () => {
+    setQ("");
     if (user?.id) listLogs(user.id, dateForOffset(offset));
   };
 
@@ -160,15 +161,26 @@ export default function SearchPage() {
         <span aria-hidden="true" />
       </div>
       <SearchBar value={q} onChange={setQ} onScan={() => setScan((v) => !v)} />
-      <div className="px-5 pt-1 pb-2">
-        <button
-          onClick={() => openModal("manualKcal", { defaultMeal: presetMeal })}
-          className="w-full py-2.5 rounded-xl border-[1.5px] border-dashed border-border bg-white text-[13px] font-bold inline-flex items-center justify-center gap-2 hover:bg-bg active:bg-bg/60"
-          style={{ color: "var(--color-navy)" }}
-        >
-          <span aria-hidden="true">＋</span>
-          Ručno unesi kalorije
-        </button>
+      <div
+        className="overflow-hidden transition-all duration-300 ease-out"
+        style={{
+          maxHeight: q.length > 0 ? 0 : 80,
+          opacity: q.length > 0 ? 0 : 1,
+          transform: q.length > 0 ? "translateY(-4px)" : "translateY(0)",
+        }}
+        aria-hidden={q.length > 0}
+      >
+        <div className="px-5 pt-1 pb-2">
+          <button
+            onClick={() => openModal("manualKcal", { defaultMeal: presetMeal })}
+            tabIndex={q.length > 0 ? -1 : 0}
+            className="w-full py-2.5 rounded-xl border-[1.5px] border-dashed border-border bg-white text-[13px] font-bold inline-flex items-center justify-center gap-2 hover:bg-bg active:bg-bg/60"
+            style={{ color: "var(--color-navy)" }}
+          >
+            <span aria-hidden="true">＋</span>
+            Ručno unesi kalorije
+          </button>
+        </div>
       </div>
       <BarcodeScanner
         open={scan}
