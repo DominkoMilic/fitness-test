@@ -40,6 +40,12 @@ export type Database = {
         Update: Partial<SearchHistoryDbInsert>;
         Relationships: [];
       };
+      daily_metrics: {
+        Row: DailyMetricsRow;
+        Insert: DailyMetricsInsert;
+        Update: Partial<DailyMetricsInsert>;
+        Relationships: [];
+      };
     };
     Views: {
       user_activity_view: {
@@ -216,4 +222,29 @@ export type SearchHistoryDbInsert = {
   grams?: number;
   pieces?: number | null;
   last_searched_at?: string;
+};
+
+export type DailyMetricsRow = {
+  id: number;
+  user_id: string;
+  date: string;
+  weight_kg: number | null;
+  steps: number | null;
+  created_at: string;
+  updated_at: string;
+};
+export type DailyMetricsInsert = {
+  user_id: string;
+  date: string;
+  weight_kg?: number | null;
+  steps?: number | null;
+  updated_at?: string;
+};
+
+// API row — daily_metrics joined with computed kcal sum from food_logs.
+export type DailyMetricsApi = {
+  date: string;
+  weight_kg: number | null;
+  steps: number | null;
+  kcal: number;
 };
