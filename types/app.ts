@@ -3,6 +3,10 @@ import type { MealKey } from "./database";
 export type FoodEntry = {
   id: number | string;
   name: string;
+  // Diacritic-stripped, lowercased, space-collapsed version of `name`.
+  // Sourced from foods.normalized_name; computed on demand by the search
+  // service when missing (DEFAULT_FOODS / locally-added scanner results).
+  normalizedName?: string;
   kcal: number;
   p: number;
   u: number;

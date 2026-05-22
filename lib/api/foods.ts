@@ -1,10 +1,14 @@
 import { supabase } from "@/lib/supabase/client";
 import { DEFAULT_FOODS } from "@/lib/constants/defaultFoods";
+import { normalizeForSearch } from "@/lib/utils/normalize";
 import type { FoodEntry } from "@/types/app";
 import type { FoodRow } from "@/types/database";
 
-const CACHE_KEY = "kf_foods_cache";
-const CACHE_TS_KEY = "kf_foods_cache_ts";
+// Bumped on schema change (added normalizedName) so stale caches are
+// discarded rather than reused without the searchable field.
+const CACHE_KEY = "kf_foods_cache_v2";
+const CACHE_TS_KEY = "kf_foods_cache_v2_ts";
+const LEGACY_CACHE_KEYS = ["kf_foods_cache", "kf_foods_cache_ts"];
 const TTL = 2 * 60 * 60 * 1000; // 2h
 export const FOODS_CHANGED_EVENT = "kf-foods-changed";
 
@@ -12,6 +16,7 @@ function rowToEntry(row: FoodRow): FoodEntry {
   const e: FoodEntry = {
     id: row.id,
     name: row.name,
+    normalizedName: row.normalized_name || normalizeForSearch(row.name),
     kcal: Number(row.kcal_per_100g) || 0,
     p: Number(row.protein) || 0,
     u: Number(row.carbs) || 0,
@@ -29,6 +34,7 @@ function rowToEntry(row: FoodRow): FoodEntry {
 function readCache(): { entries: FoodEntry[]; fresh: boolean } | null {
   if (typeof window === "undefined") return null;
   try {
+    LEGACY_CACHE_KEYS.forEach((k) => localStorage.removeItem(k));
     const raw = localStorage.getItem(CACHE_KEY);
     const ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || "0");
     if (!raw) return null;
