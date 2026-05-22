@@ -148,6 +148,8 @@ export function DayMetricsCard({
           unit="kcal"
           value={kcal > 0 ? String(kcal) : "—"}
           readOnly
+          auto
+          hint="iz dnevnika"
         />
         <Field
           label="Koraci"
@@ -173,7 +175,30 @@ type FieldProps = {
   placeholder?: string;
   inputMode?: "decimal" | "numeric";
   readOnly?: boolean;
+  /** Show lock icon + tooltip — for fields user can't edit (auto-computed). */
+  auto?: boolean;
+  /** Tiny helper line under the value, e.g. "iz dnevnika". */
+  hint?: string;
 };
+
+function LockIcon() {
+  return (
+    <svg
+      width={9}
+      height={9}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x={5} y={11} width={14} height={10} rx={2} />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
 
 function Field({
   label,
@@ -184,56 +209,86 @@ function Field({
   placeholder,
   inputMode,
   readOnly = false,
+  auto = false,
+  hint,
 }: FieldProps) {
+  const tooltip = auto
+    ? hint
+      ? `Automatski (${hint})`
+      : "Automatski"
+    : undefined;
   return (
-    <div className="bg-bg rounded-xl px-2.5 py-2">
+    <div
+      className="bg-bg rounded-xl px-2.5 py-2 flex flex-col h-full"
+      title={tooltip}
+      style={auto ? { cursor: "help" } : undefined}
+    >
       <div
-        className="text-[10px] font-bold uppercase tracking-wider mb-1"
+        className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider mb-1"
         style={{ color: "var(--color-muted)" }}
       >
-        {label}
+        <span>{label}</span>
+        {auto && (
+          <span
+            className="inline-flex items-center"
+            style={{ color: "var(--color-muted)" }}
+            aria-label="Automatski"
+          >
+            <LockIcon />
+          </span>
+        )}
       </div>
-      {readOnly ? (
-        <div
-          className="text-sm font-bold leading-tight"
-          style={{ color: "var(--color-navy)" }}
-        >
-          {value === "" ? "—" : value}
-          {unit && value !== "—" && value !== "" && (
-            <span
-              className="ml-1 text-[10px] font-semibold"
-              style={{ color: "var(--color-muted)" }}
-            >
-              {unit}
-            </span>
-          )}
-        </div>
-      ) : (
-        <div className="flex items-center gap-1">
-          <input
-            type="text"
-            inputMode={inputMode}
-            value={value}
-            placeholder={placeholder}
-            onChange={(e) => onChange?.(e.target.value)}
-            onBlur={onBlur}
-            onFocus={(e) => {
-              const el = e.currentTarget;
-              setTimeout(() => el.select(), 0);
-            }}
-            className="w-full bg-transparent text-sm font-bold outline-none"
+      <div className="flex-1 flex flex-col justify-center">
+        {readOnly ? (
+          <div
+            className="text-sm font-bold leading-tight"
             style={{ color: "var(--color-navy)" }}
-          />
-          {unit && (
-            <span
-              className="text-[10px] font-semibold shrink-0"
-              style={{ color: "var(--color-muted)" }}
-            >
-              {unit}
-            </span>
-          )}
-        </div>
-      )}
+          >
+            {value === "" ? "—" : value}
+            {unit && value !== "—" && value !== "" && (
+              <span
+                className="ml-1 text-[10px] font-semibold"
+                style={{ color: "var(--color-muted)" }}
+              >
+                {unit}
+              </span>
+            )}
+            {hint && (
+              <div
+                className="text-[9.5px] font-semibold mt-0.5 italic"
+                style={{ color: "var(--color-muted)" }}
+              >
+                {hint}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <input
+              type="text"
+              inputMode={inputMode}
+              value={value}
+              placeholder={placeholder}
+              onChange={(e) => onChange?.(e.target.value)}
+              onBlur={onBlur}
+              onFocus={(e) => {
+                const el = e.currentTarget;
+                setTimeout(() => el.select(), 0);
+              }}
+              className="w-full bg-transparent text-sm font-bold outline-none"
+              style={{ color: "var(--color-navy)" }}
+            />
+            {unit && (
+              <span
+                className="text-[10px] font-semibold shrink-0"
+                style={{ color: "var(--color-muted)" }}
+              >
+                {unit}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
