@@ -153,7 +153,7 @@ export default function AdminUserKalendarPage() {
             className="text-base font-extrabold"
             style={{ color: "var(--color-navy)" }}
           >
-            Kalendar aktivnosti korisnika
+            Napredak korisnika
           </div>
           <div
             className="text-[12px]"

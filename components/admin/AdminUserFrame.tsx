@@ -152,7 +152,7 @@ export function AdminUserFrame({
     },
     {
       href: `/admin/users/${user.code}/kalendar`,
-      label: "Kalendar",
+      label: "Napredak",
       key: "kalendar" as const,
     },
     {
