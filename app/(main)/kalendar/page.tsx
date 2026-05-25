@@ -148,7 +148,7 @@ export default function KalendarPage() {
           className="text-base font-extrabold"
           style={{ color: "var(--color-navy)" }}
         >
-          Kalendar aktivnosti
+          Kalendar napretka
         </div>
       </div>
       <div
