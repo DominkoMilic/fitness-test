@@ -5,6 +5,8 @@ import { LoadingOverlay } from "@/components/ui/Loading";
 import { RouteLoadingSync } from "@/components/layout/RouteLoadingSync";
 import { PWARegister } from "@/components/layout/PWARegister";
 import { CookieBanner } from "@/components/legal/CookieBanner";
+import { Splash } from "@/components/layout/Splash";
+import { SplashHider } from "@/components/layout/SplashHider";
 
 export const metadata: Metadata = {
   title: "Krešimir Fit Tracker",
@@ -47,7 +49,9 @@ export default function RootLayout({
   return (
     <html lang="hr" className="h-full antialiased">
       <body className="min-h-full">
+        <Splash />
         <div className="max-w-107.5 mx-auto min-h-screen">{children}</div>
+        <SplashHider />
         <RouteLoadingSync />
         <PWARegister />
         <Toast />
