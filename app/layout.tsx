@@ -47,8 +47,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="hr" className="h-full antialiased">
-      <body className="min-h-full">
+    <html
+      lang="hr"
+      className="h-full antialiased"
+      // Inline bg beats external CSS → no cream flash before Splash paints.
+      // SplashHider clears these on mount so globals.css cream takes over.
+      style={{ background: "#1b3255" }}
+      data-kf-booting="1"
+    >
+      <body className="min-h-full" style={{ background: "#1b3255" }}>
         <Splash />
         <div className="max-w-107.5 mx-auto min-h-screen">{children}</div>
         <SplashHider />

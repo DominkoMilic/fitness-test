@@ -86,7 +86,12 @@ export function Splash() {
           __html: `
 setTimeout(function(){
   var el = document.getElementById('kf-splash');
-  if (el) { el.classList.add('kf-splash-hide'); setTimeout(function(){ el.remove(); }, 400); }
+  var h = document.documentElement;
+  var b = document.body;
+  if (el) { el.classList.add('kf-splash-hide'); setTimeout(function(){
+    el.remove();
+    h.style.background=''; b.style.background=''; h.removeAttribute('data-kf-booting');
+  }, 400); }
 }, 6000);
           `,
         }}
