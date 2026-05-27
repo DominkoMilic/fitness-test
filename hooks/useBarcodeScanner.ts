@@ -24,6 +24,8 @@ type Options = {
   onCode: (code: string) => void;
   /** Cooldown to suppress duplicate scans of the same code (ms). */
   cooldownMs?: number;
+  /** Change this value to force a re-init of the camera + scanner. */
+  retryToken?: number;
 };
 
 // `torch`/`focusMode` etc. are not in the standard MediaTrack* types yet.
@@ -50,6 +52,7 @@ export function useBarcodeScanner({
   open,
   onCode,
   cooldownMs = 1500,
+  retryToken = 0,
 }: Options) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scannerRef = useRef<BarcodeScannerAdapter | null>(null);
@@ -132,9 +135,37 @@ export function useBarcodeScanner({
     let cancelled = false;
     setStatus("starting");
 
+    // Watchdog: if camera doesn't come up within 10 s, surface an error
+    // instead of leaving the user staring at "Pokrećem kameru..." forever.
+    // Fires for: silent getUserMedia hang (iOS edge cases), service-worker
+    // weirdness, or any unexpected await that never resolves.
+    const watchdog = setTimeout(() => {
+      if (cancelled) return;
+      setStatus((s) => {
+        if (s === "starting") {
+          scanLog("error", { source: "watchdog", reason: "start-timeout" });
+          return "error";
+        }
+        return s;
+      });
+    }, 10000);
+
     const start = async () => {
-      const video = videoRef.current;
-      if (!video) return;
+      // Wait briefly for the <video> ref to attach. In React 19 we've
+      // occasionally seen the first effect run beat the ref commit on
+      // mobile webviews — retry up to ~16 frames (~250 ms) before giving
+      // up loudly instead of silently bailing.
+      let video = videoRef.current;
+      for (let i = 0; !video && i < 16; i++) {
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+        if (cancelled) return;
+        video = videoRef.current;
+      }
+      if (!video) {
+        scanLog("error", { source: "videoRef", reason: "never-attached" });
+        setStatus("error");
+        return;
+      }
 
       if (typeof window !== "undefined" && window.isSecureContext === false) {
         setStatus("insecure");
@@ -148,9 +179,30 @@ export function useBarcodeScanner({
         return;
       }
 
+      // Try with rich constraints first, retry minimal on
+      // OverconstrainedError (cheap mobile cameras often reject 1920×1080
+      // or the advanced focus mode set).
+      const acquireStream = async (): Promise<MediaStream> => {
+        try {
+          return await navigator.mediaDevices.getUserMedia(buildConstraints());
+        } catch (e) {
+          const err = e as DOMException;
+          if (err?.name !== "OverconstrainedError") throw err;
+          scanLog("error", {
+            source: "getUserMedia",
+            name: err?.name,
+            retry: "minimal-constraints",
+          });
+          return await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: { facingMode: { ideal: "environment" } },
+          });
+        }
+      };
+
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia(buildConstraints());
+        stream = await acquireStream();
       } catch (e) {
         const err = e as DOMException;
         if (err?.name === "NotAllowedError") setStatus("permission-denied");
@@ -229,10 +281,11 @@ export function useBarcodeScanner({
 
     return () => {
       cancelled = true;
+      clearTimeout(watchdog);
       document.removeEventListener("visibilitychange", onVisibility);
       void stopAll();
     };
-  }, [open, handleDetected, stopAll]);
+  }, [open, handleDetected, stopAll, retryToken]);
 
   const toggleTorch = useCallback(async () => {
     const stream = streamRef.current;

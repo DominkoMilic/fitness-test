@@ -22,12 +22,19 @@ const STATUS_MSG: Record<ScannerStatus, string> = {
   "camera-busy": "Kamera zauzeta drugom aplikacijom.",
   insecure: "Potreban HTTPS za pristup kameri.",
   unsupported: "Skener nije podržan u ovom pregledniku.",
-  error: "Kamera nije dostupna.",
+  error: "Kamera ne odgovara. Provjeri dozvole i pokušaj ponovno.",
 };
+
+const RETRYABLE_STATUS: ScannerStatus[] = [
+  "error",
+  "permission-denied",
+  "camera-busy",
+];
 
 export function BarcodeScanner({ open, onClose, onResult }: Props) {
   const [lookupBusy, setLookupBusy] = useState(false);
   const [lookupMsg, setLookupMsg] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
   const inFlightRef = useRef<string | null>(null);
 
   // Reset transient lookup state every time the scanner opens.
@@ -35,6 +42,7 @@ export function BarcodeScanner({ open, onClose, onResult }: Props) {
     if (open) {
       setLookupBusy(false);
       setLookupMsg(null);
+      setRetryToken(0);
       inFlightRef.current = null;
     }
   }, [open]);
@@ -88,7 +96,7 @@ export function BarcodeScanner({ open, onClose, onResult }: Props) {
     torchOn,
     toggleTorch,
     adapterKind,
-  } = useBarcodeScanner({ open, onCode });
+  } = useBarcodeScanner({ open, onCode, retryToken });
 
   if (!open) return null;
 
@@ -134,6 +142,17 @@ export function BarcodeScanner({ open, onClose, onResult }: Props) {
         style={{ color: "var(--color-muted)" }}
       >
         {display}
+        {RETRYABLE_STATUS.includes(status) && !lookupBusy && (
+          <button
+            onClick={() => {
+              setLookupMsg(null);
+              setRetryToken((n) => n + 1);
+            }}
+            className="mt-3 inline-flex px-4 py-2 rounded-xl bg-navy text-white text-[13px] font-bold"
+          >
+            Pokušaj ponovno
+          </button>
+        )}
       </div>
       {showDebug && (
         <div
