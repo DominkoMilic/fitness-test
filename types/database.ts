@@ -118,6 +118,7 @@ export type FoodRow = {
   id: number;
   name: string;
   normalized_name: string;
+  barcode: string | null;
   category: string | null;
   kcal_per_100g: number;
   protein: number;

@@ -1,6 +1,7 @@
 import "server-only";
 import { parseCSV } from "@/lib/utils/csv";
 import { normalizeForSearch } from "@/lib/utils/normalize";
+import { normalizeBarcode } from "@/lib/barcode/normalize";
 import type { FoodInsert, FoodRow } from "@/types/database";
 import type {
   ApplyResult,
@@ -117,12 +118,23 @@ export function parseSheet(rawCsv: string): SheetParsedRow[] {
           pickValue(row, ["sheet_row_id", "sheet row id", "row id", "id"]),
         ) || null;
 
+      const rawBarcode = pickValue(row, [
+        "Bar kod",
+        "Barkod",
+        "Barcode",
+        "EAN",
+        "UPC",
+      ]);
+      const cleanBarcode = normalizeBarcode(rawBarcode);
+
       const food: FoodInsert = {
         name,
         // Defense-in-depth: DB trigger also fills this on insert/update,
         // but we set it explicitly so the planner / diff sees the canonical
         // value and so any path that bypasses the trigger still gets it.
         normalized_name: normalizeForSearch(name),
+        // null when empty so the partial unique index never sees blanks.
+        barcode: cleanBarcode ? cleanBarcode : null,
         category: pickValue(row, ["Kategorija", "Category"]).trim() || null,
         kcal_per_100g: toNum(
           pickValue(row, ["kcal/100g", "kcal", "kcal100g", "kalorije"]),
@@ -175,6 +187,7 @@ const DIFFABLE_KEYS = [
   "sheet_row_id",
   "has_cup",
   "has_spoons",
+  "barcode",
 ] as const;
 
 function valuesEqual(a: unknown, b: unknown): boolean {

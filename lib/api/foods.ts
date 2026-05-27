@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase/client";
 import { DEFAULT_FOODS } from "@/lib/constants/defaultFoods";
 import { normalizeForSearch } from "@/lib/utils/normalize";
+import { normalizeBarcode } from "@/lib/barcode/normalize";
 import type { FoodEntry } from "@/types/app";
 import type { FoodRow } from "@/types/database";
 
@@ -22,6 +23,7 @@ function rowToEntry(row: FoodRow): FoodEntry {
     u: Number(row.carbs) || 0,
     m: Number(row.fat) || 0,
   };
+  if (row.barcode) e.barcode = row.barcode;
   if (row.piece_weight_g && row.piece_name) {
     e.piece_g = Number(row.piece_weight_g);
     e.piece_label = row.piece_name;
@@ -75,4 +77,33 @@ export async function loadFoods(): Promise<FoodEntry[]> {
   const entries = data.map(rowToEntry);
   writeCache(entries);
   return entries;
+}
+
+// Lookup a single food by scanned barcode. Cache-first (instant if cached
+// foods are already loaded), then Supabase by exact match on the normalized
+// barcode. Returns null when nothing matches.
+export async function findFoodByBarcode(
+  rawCode: string,
+): Promise<FoodEntry | null> {
+  const code = normalizeBarcode(rawCode);
+  if (!code) return null;
+
+  // 1) In-memory cache check — avoids round-trip when useFoods already
+  //    populated localStorage. Stale cache is acceptable here: a barcode
+  //    moving foods is extremely rare; worst case we fall through to DB.
+  const cache = readCache();
+  if (cache) {
+    const hit = cache.entries.find((f) => f.barcode === code);
+    if (hit) return hit;
+  }
+
+  // 2) DB lookup. Single-row, indexed (ux_foods_barcode).
+  const { data, error } = await supabase
+    .from("foods")
+    .select("*")
+    .eq("barcode", code)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return rowToEntry(data);
 }

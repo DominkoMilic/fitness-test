@@ -15,6 +15,8 @@ export type FoodEntry = {
   piece_label?: string;
   has_cup?: boolean;
   has_spoons?: boolean;
+  // Digits-only EAN/UPC. Present when admin set "Bar kod" in sheet.
+  barcode?: string;
 };
 
 export type PieceInfo = { g: number; label: string };

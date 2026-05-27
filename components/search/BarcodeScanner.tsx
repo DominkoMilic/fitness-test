@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { lookupBarcode } from "@/lib/api/openFoodFacts";
+import { findFoodByBarcode } from "@/lib/api/foods";
 import { useBarcodeScanner, type ScannerStatus } from "@/hooks/useBarcodeScanner";
 import { scanLog } from "@/lib/barcode/diagnostics";
 import type { FoodEntry } from "@/types/app";
@@ -45,9 +46,21 @@ export function BarcodeScanner({ open, onClose, onResult }: Props) {
       setLookupBusy(true);
       setLookupMsg(`Tražim: ${code}...`);
       try {
+        // 1) Our DB first — admin-curated foods are authoritative and
+        //    typically have accurate Croatian-market macros. Indexed by
+        //    barcode (ux_foods_barcode), so this is a single fast query.
+        const ours = await findFoodByBarcode(code);
+        if (ours) {
+          scanLog("lookup-success", { code, name: ours.name, source: "db" });
+          onResult(ours);
+          onClose();
+          return;
+        }
+
+        // 2) Open Food Facts fallback when not in our DB.
         const food = await lookupBarcode(code);
         if (food) {
-          scanLog("lookup-success", { code, name: food.name });
+          scanLog("lookup-success", { code, name: food.name, source: "off" });
           onResult(food);
           onClose();
           return;
