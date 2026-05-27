@@ -7,6 +7,9 @@ import {
   parseSheet,
 } from "@/lib/server/sheetSyncCore";
 
+// Sheet fetch + parse can spike on slow upstream. Lift over default 10 s.
+export const maxDuration = 60;
+
 export async function GET() {
   const guard = await requireAdmin();
   if (guard) return guard;
