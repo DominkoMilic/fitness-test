@@ -24,8 +24,8 @@ export function SyncSection() {
   const onPreview = async () => {
     setLoading(true);
     try {
-      const plan = await fetchSheetSyncPlan();
-      openModal("syncPreview", { plan });
+      const { plan, diagnostics } = await fetchSheetSyncPlan();
+      openModal("syncPreview", { plan, diagnostics });
     } catch (e) {
       showToast(`Greška: ${(e as Error).message}`);
     } finally {

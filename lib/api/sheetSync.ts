@@ -11,7 +11,17 @@ import type {
 
 export type { ApplyResult, FoodDelete, FoodUpdatePatch, SheetSyncPlan };
 
-export async function fetchSheetSyncPlan(): Promise<SheetSyncPlan> {
+export type SheetSyncDiagnostics = {
+  sheetRowsParsed: number;
+  dbRowsImported: number;
+};
+
+export type SheetSyncPlanResponse = {
+  plan: SheetSyncPlan;
+  diagnostics?: SheetSyncDiagnostics;
+};
+
+export async function fetchSheetSyncPlan(): Promise<SheetSyncPlanResponse> {
   const res = await fetch("/api/admin/sheet-sync/plan", {
     credentials: "same-origin",
     cache: "no-store",
@@ -22,8 +32,8 @@ export async function fetchSheetSyncPlan(): Promise<SheetSyncPlan> {
       | null;
     throw new Error(body?.error || `Sync plan nije uspio (${res.status})`);
   }
-  const body = (await res.json()) as { plan: SheetSyncPlan };
-  return body.plan;
+  const body = (await res.json()) as SheetSyncPlanResponse;
+  return body;
 }
 
 export async function applySheetSyncPlan(

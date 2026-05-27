@@ -1,11 +1,14 @@
 "use client";
 import { Modal } from "@/components/ui/Modal";
 import { useUIStore } from "@/store/useUIStore";
-import { applySheetSyncPlan } from "@/lib/api/sheetSync";
+import {
+  applySheetSyncPlan,
+  type SheetSyncDiagnostics,
+} from "@/lib/api/sheetSync";
 import { clearFoodsCache } from "@/lib/api/foods";
 import type { SheetSyncPlan } from "@/types/sheetSync";
 
-type Payload = { plan: SheetSyncPlan };
+type Payload = { plan: SheetSyncPlan; diagnostics?: SheetSyncDiagnostics };
 
 export function SyncPreviewModal({ onDone }: { onDone?: () => void }) {
   const modal = useUIStore((s) => s.modal);
@@ -75,6 +78,16 @@ export function SyncPreviewModal({ onDone }: { onDone?: () => void }) {
           ? `Nema promjena za sinkronizaciju. Bez promjene: ${unchangedCount}.`
           : `Dodaj: ${toInsert.length} · Ažuriraj: ${toUpdate.length} · Obriši: ${toDelete.length} · Bez promjene: ${unchangedCount}`}
       </div>
+
+      {payload.diagnostics && (
+        <div
+          className="mb-4 text-[11px] font-semibold rounded-lg px-3 py-2 bg-bg"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Sheet redaka: {payload.diagnostics.sheetRowsParsed} · DB redaka
+          (imported): {payload.diagnostics.dbRowsImported}
+        </div>
+      )}
 
       {dupCount > 0 && (
         <div

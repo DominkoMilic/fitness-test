@@ -65,18 +65,34 @@ export function clearFoodsCache() {
 
 // 2h-cached read of imported foods. Falls back to DEFAULT_FOODS only when
 // neither cache nor DB returns rows (cold start / first run).
+//
+// PAGINATED — Supabase caps single-request reads at 1000 rows. Without
+// pagination, foods past row 1000 were invisible to the client.
+const FOODS_PAGE = 1000;
+
 export async function loadFoods(): Promise<FoodEntry[]> {
   const cache = readCache();
   if (cache?.fresh) return cache.entries;
 
-  const { data } = await supabase
-    .from("foods")
-    .select("*")
-    .eq("status", "imported");
-  if (!data || !data.length) return cache?.entries ?? DEFAULT_FOODS;
-  const entries = data.map(rowToEntry);
-  writeCache(entries);
-  return entries;
+  const all: FoodEntry[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("foods")
+      .select("*")
+      .eq("status", "imported")
+      .order("id", { ascending: true })
+      .range(from, from + FOODS_PAGE - 1);
+    if (error) break;
+    if (!data || data.length === 0) break;
+    for (const row of data) all.push(rowToEntry(row));
+    if (data.length < FOODS_PAGE) break;
+    from += FOODS_PAGE;
+  }
+
+  if (!all.length) return cache?.entries ?? DEFAULT_FOODS;
+  writeCache(all);
+  return all;
 }
 
 // Lookup a single food by scanned barcode. Cache-first (instant if cached
