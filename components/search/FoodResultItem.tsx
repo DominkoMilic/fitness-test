@@ -51,28 +51,30 @@ export function FoodResultItem({
               kom
             </span>
           )}
-          {amountLabel && (
-            <span
-              className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-orange/10"
-              style={{ color: "var(--color-orange)" }}
-            >
-              {amountLabel}
-            </span>
-          )}
         </div>
       </div>
       {historyEntry && onQuickAdd && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onQuickAdd();
-          }}
-          aria-label={`Dodaj odmah · ${amountLabel ?? ""}`}
-          className="shrink-0 w-7 h-7 rounded-full text-white text-lg flex items-center justify-center"
-          style={{ background: "var(--color-orange)" }}
-        >
-          +
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {amountLabel && (
+            <span
+              className="text-[11px] font-bold px-2 py-1 rounded-lg bg-orange/10 whitespace-nowrap"
+              style={{ color: "var(--color-orange)" }}
+            >
+              Unesite {amountLabel}
+            </span>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onQuickAdd();
+            }}
+            aria-label={`Dodaj odmah · ${amountLabel ?? ""}`}
+            className="w-7 h-7 rounded-full text-white text-lg flex items-center justify-center"
+            style={{ background: "var(--color-orange)" }}
+          >
+            +
+          </button>
+        </div>
       )}
     </div>
   );
