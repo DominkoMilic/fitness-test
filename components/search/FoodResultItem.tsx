@@ -60,7 +60,7 @@ export function FoodResultItem({
             className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-orange/10 whitespace-nowrap leading-tight"
             style={{ color: "var(--color-orange)" }}
           >
-            Unesite {amountLabel}
+            Zadnji unos: {amountLabel}
           </span>
         )}
       </div>
