@@ -4,11 +4,16 @@ import { motion } from "framer-motion";
 
 type Variant = "primary" | "navy" | "cancel" | "orange";
 
+// Tailwind v4 renamed `bg-gradient-to-*` → `bg-linear-to-*`. Using the
+// v3 names produced an invisible white-on-white button for the reporter
+// because the gradient class silently dropped (e.g. iOS WebKit on a
+// fresh JIT-compiled CSS bundle). All gradient utilities in this repo
+// must use the v4 form.
 const styles: Record<Variant, string> = {
-  primary: "bg-gradient-to-br from-[#c85a10] to-[#a84a0d] text-white",
-  navy: "bg-gradient-to-br from-[#1b3255] to-[#162844] text-white",
+  primary: "bg-linear-to-br from-[#c85a10] to-[#a84a0d] text-white",
+  navy: "bg-linear-to-br from-[#1b3255] to-[#162844] text-white",
   cancel: "border border-border text-[var(--color-muted)] bg-[var(--color-bg)]",
-  orange: "bg-gradient-to-br from-[#c85a10] to-[#a84a0d] text-white",
+  orange: "bg-linear-to-br from-[#c85a10] to-[#a84a0d] text-white",
 };
 
 type Props = Omit<
