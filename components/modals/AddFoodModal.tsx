@@ -23,7 +23,6 @@ import {
 import { croatianPlural } from "@/lib/utils/croatianPlural";
 import { MEAL_NAMES, MEAL_OPTIONS } from "@/lib/constants/meals";
 import { insertLog } from "@/lib/api/foodLogs";
-import { pushSearchHistory } from "@/lib/api/searchHistory";
 import type { FoodEntry } from "@/types/app";
 import type { MealKey } from "@/types/database";
 
@@ -49,7 +48,17 @@ function qtyLabelForUnit(unit: AmountUnit, qty: number): string {
   return `Broj · ${noun}`;
 }
 
-export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
+export type AddFoodAddedInfo = {
+  foodId: number;
+  grams: number;
+  pieces: number | null;
+};
+
+export function AddFoodModal({
+  onAdded,
+}: {
+  onAdded?: (info?: AddFoodAddedInfo) => void;
+}) {
   const modal = useUIStore((s) => s.modal);
   const payload = useUIStore((s) => s.modalPayload as Payload | null);
   const closeModal = useUIStore((s) => s.closeModal);
@@ -124,12 +133,13 @@ export function AddFoodModal({ onAdded }: { onAdded?: () => void }) {
       pieces: finalPieces,
     });
     const numericId = Number(food.id);
-    if (Number.isFinite(numericId)) {
-      pushSearchHistory(user.id, numericId, finalGrams, finalPieces).catch(
-        () => {},
-      );
-    }
-    onAdded?.();
+    const info: AddFoodAddedInfo | undefined = Number.isFinite(numericId)
+      ? { foodId: numericId, grams: finalGrams, pieces: finalPieces }
+      : undefined;
+    // Parent (search page) persists search-history via useHistory.push so
+    // both the DB write AND the in-memory `entries` state update in one
+    // shot — no re-mount needed to see the new row.
+    onAdded?.(info);
   };
 
   const unitButtonLabel = (u: AmountUnit): string => {

@@ -68,12 +68,29 @@ export default function SearchPage() {
       .filter((x): x is HistoryListItem => Boolean(x));
   }, [foods, entries]);
 
-  const onAdded = () => {
+  // Lookup map for history-aware search rendering (foodId → entry).
+  const historyById = useMemo(() => {
+    const m = new Map<number, (typeof entries)[number]>();
+    for (const e of entries) m.set(Number(e.foodId), e);
+    return m;
+  }, [entries]);
+
+  // Called by AddFoodModal after a successful insertLog. Persists +
+  // optimistically updates the history list so a newly-added food appears
+  // immediately, no remount required.
+  const onAdded = (info?: {
+    foodId: number;
+    grams: number;
+    pieces: number | null;
+  }) => {
     setQ("");
+    if (info && user?.id) {
+      pushHistory(info.foodId, info.grams, info.pieces);
+    }
     if (user?.id) listLogs(user.id, dateForOffset(offset));
   };
 
-  // Search result click → open modal (no preset amount).
+  // Search result body click → open modal (no preset amount).
   const onPick = (food: FoodEntry) => {
     openModal("addFood", { food, defaultMeal: presetMeal });
   };
@@ -86,7 +103,7 @@ export default function SearchPage() {
   // History row click → open modal pre-filled with stored amount.
   const onHistoryEdit = (foodId: number) => {
     const food = foods.find((x) => Number(x.id) === foodId);
-    const entry = entries.find((e) => e.foodId === foodId);
+    const entry = historyById.get(foodId);
     if (!food) return;
     openModal("addFood", {
       food,
@@ -96,11 +113,13 @@ export default function SearchPage() {
     });
   };
 
-  // History + button → instant insert with stored amount, no modal.
-  const onHistoryQuickAdd = async (foodId: number) => {
+  // Shared quick-add: skips modal, inserts with the stored history amount.
+  // Used by both the history list "+" and the search-result "+" (when
+  // the result also has a history entry).
+  const quickAddFromHistory = async (foodId: number) => {
     if (!user || !presetMeal) return;
     const food = foods.find((x) => Number(x.id) === foodId);
-    const entry = entries.find((e) => e.foodId === foodId);
+    const entry = historyById.get(foodId);
     if (!food || !entry) return;
     const unit: "g" | "kom" = entry.pieces != null ? "kom" : "g";
     const qty = unit === "kom" ? Number(entry.pieces) : entry.grams;
@@ -201,9 +220,25 @@ export default function SearchPage() {
       ) : q ? (
         filtered.length ? (
           <div>
-            {filtered.map((f) => (
-              <FoodResultItem key={f.id} food={f} onClick={() => onPick(f)} />
-            ))}
+            {filtered.map((f) => {
+              const id = Number(f.id);
+              const entry = historyById.get(id);
+              return (
+                <FoodResultItem
+                  key={f.id}
+                  food={f}
+                  onClick={() => onPick(f)}
+                  historyEntry={
+                    entry
+                      ? { grams: entry.grams, pieces: entry.pieces }
+                      : undefined
+                  }
+                  onQuickAdd={
+                    entry ? () => quickAddFromHistory(id) : undefined
+                  }
+                />
+              );
+            })}
           </div>
         ) : (
           <div
@@ -216,7 +251,7 @@ export default function SearchPage() {
       ) : (
         <HistoryList
           items={historyItems}
-          onQuickAdd={onHistoryQuickAdd}
+          onQuickAdd={quickAddFromHistory}
           onEdit={onHistoryEdit}
           onRemove={(id) => removeHistory(id)}
           onClear={() => clearHistory()}
