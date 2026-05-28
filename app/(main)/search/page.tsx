@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SearchBar } from "@/components/search/SearchBar";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { FoodResultItem } from "@/components/search/FoodResultItem";
 import {
   HistoryList,
@@ -20,7 +21,7 @@ import { InlineLoading } from "@/components/ui/Loading";
 import { dateForOffset } from "@/lib/utils/date";
 import { insertLog, listLogs } from "@/lib/api/foodLogs";
 import { effectiveGrams, macroForGrams } from "@/lib/utils/macros";
-import { MEAL_KEYS, MEAL_NAMES } from "@/lib/constants/meals";
+import { MEAL_KEYS, MEAL_NAMES, MEAL_OPTIONS } from "@/lib/constants/meals";
 import type { FoodEntry } from "@/types/app";
 import type { MealKey } from "@/types/database";
 
@@ -153,9 +154,19 @@ export default function SearchPage() {
           </svg>
           Natrag
         </button>
-        <span className="text-base font-extrabold text-center">
-          Obrok: {MEAL_NAMES[presetMeal]}
-        </span>
+        <div className="justify-self-center inline-flex items-center gap-2">
+          <span className="text-base font-extrabold">Obrok:</span>
+          <Dropdown
+            value={presetMeal}
+            onChange={(next) => {
+              router.replace(`/search?meal=${next}`);
+            }}
+            options={MEAL_OPTIONS}
+            ariaLabel="Promijeni obrok"
+            variant="pill"
+            align="left"
+          />
+        </div>
         <span aria-hidden="true" />
       </div>
       <SearchBar value={q} onChange={setQ} onScan={() => setScan((v) => !v)} />
