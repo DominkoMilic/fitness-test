@@ -22,9 +22,11 @@ type Payload = { groupId: string };
 export function RecipeLogModal({
   logs,
   onChanged,
+  readOnly = false,
 }: {
   logs: FoodLogRow[];
   onChanged?: () => void;
+  readOnly?: boolean;
 }) {
   const modal = useUIStore((s) => s.modal);
   const payload = useUIStore((s) => s.modalPayload as Payload | null);
@@ -63,6 +65,7 @@ export function RecipeLogModal({
           <FoodRow
             key={it.id}
             item={it}
+            readOnly={readOnly}
             editing={editingId === it.id}
             onToggle={() =>
               setEditingId((cur) => (cur === it.id ? null : it.id))
@@ -87,12 +90,14 @@ export function RecipeLogModal({
 
 function FoodRow({
   item,
+  readOnly,
   editing,
   onToggle,
   onClose,
   onChanged,
 }: {
   item: FoodLogRow;
+  readOnly: boolean;
   editing: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -121,8 +126,8 @@ function FoodRow({
   return (
     <div className="border-b border-border last:border-b-0">
       <div
-        onClick={() => !busy && onToggle()}
-        className={`px-3.5 py-2.5 cursor-pointer transition-colors ${editing ? "bg-bg/60" : ""}`}
+        onClick={() => !readOnly && !busy && onToggle()}
+        className={`px-3.5 py-2.5 transition-colors ${readOnly ? "" : "cursor-pointer"} ${editing ? "bg-bg/60" : ""}`}
       >
         <div className="flex items-start justify-between">
           <div className="min-w-0">
@@ -141,17 +146,19 @@ function FoodRow({
             >
               {Math.round(item.kcal)} kcal
             </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              disabled={busy}
-              className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center disabled:opacity-40"
-              aria-label="Obriši"
-            >
-              ×
-            </button>
+            {!readOnly && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                disabled={busy}
+                className="kf-icon-btn text-gray-300 text-lg w-7 h-7 flex items-center justify-center disabled:opacity-40"
+                aria-label="Obriši"
+              >
+                ×
+              </button>
+            )}
           </div>
         </div>
         <div className="flex gap-2.5 mt-1">
@@ -162,7 +169,7 @@ function FoodRow({
       </div>
 
       <AnimatePresence initial={false}>
-        {editing && (
+        {editing && !readOnly && (
           <motion.div
             key="editor"
             initial={{ height: 0, opacity: 0 }}

@@ -6,7 +6,9 @@ import { CalorieRing } from "@/components/dashboard/CalorieRing";
 import { DayNav } from "@/components/dashboard/DayNav";
 import { MacroPills } from "@/components/dashboard/MacroPills";
 import { MealsList } from "@/components/dashboard/MealsList";
+import { RecipeLogModal } from "@/components/modals/RecipeLogModal";
 import { InlineLoading } from "@/components/ui/Loading";
+import { useUIStore } from "@/store/useUIStore";
 import { isAdminAuthenticated } from "@/lib/utils/adminAuth";
 import { getCodeByValue } from "@/lib/api/codes";
 import { useAdminUserFoodLogs } from "@/hooks/useAdminUserData";
@@ -41,6 +43,7 @@ export default function AdminUserDashboardPage() {
     };
   }, [code, router]);
 
+  const openModal = useUIStore((s) => s.openModal);
   const date = useMemo(() => dateForOffset(offset), [offset]);
   const { logs, loading: loadingLogs } = useAdminUserFoodLogs(code, date);
   const totals = sumLogs(logs);
@@ -71,9 +74,16 @@ export default function AdminUserDashboardPage() {
       {loadingLogs ? (
         <InlineLoading text="Pričekajte..." className="px-3" />
       ) : (
-        <MealsList logs={logs} readOnly />
+        <MealsList
+          logs={logs}
+          readOnly
+          onOpenGroup={(group) =>
+            openModal("recipeLog", { groupId: group.groupId })
+          }
+        />
       )}
       <div className="h-5" />
+      <RecipeLogModal logs={logs} readOnly />
     </AdminUserFrame>
   );
 }
