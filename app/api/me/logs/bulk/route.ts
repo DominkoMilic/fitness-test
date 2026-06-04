@@ -33,6 +33,10 @@ export async function POST(req: Request) {
       u: Number(e.u ?? 0),
       m: Number(e.m ?? 0),
       pieces: e.pieces == null ? null : Number(e.pieces),
+      group_id: e.group_id == null ? null : String(e.group_id),
+      group_name: e.group_name == null ? null : String(e.group_name).trim(),
+      group_portions:
+        e.group_portions == null ? null : Number(e.group_portions),
     };
     if (!ISO_DATE.test(entry.date) || !entry.meal || !entry.food_name) {
       return NextResponse.json(

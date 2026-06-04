@@ -3,6 +3,8 @@ import { useRouter } from "next/navigation";
 import { MEAL_NAMES } from "@/lib/constants/meals";
 import type { FoodLogRow, MealKey } from "@/types/database";
 import { FoodLogItem } from "./FoodLogItem";
+import { RecipeLogCard } from "./RecipeLogCard";
+import { groupMealLogs, type RecipeGroup } from "@/lib/utils/groupLogs";
 import { useUIStore } from "@/store/useUIStore";
 
 type Props = {
@@ -10,6 +12,8 @@ type Props = {
   items: FoodLogRow[];
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onOpenGroup?: (group: RecipeGroup) => void;
+  onDeleteGroup?: (group: RecipeGroup) => void;
   className?: string;
   readOnly?: boolean;
 };
@@ -19,12 +23,15 @@ export function MealCard({
   items,
   onEdit,
   onDelete,
+  onOpenGroup,
+  onDeleteGroup,
   className = "",
   readOnly = false,
 }: Props) {
   const router = useRouter();
   const openModal = useUIStore((s) => s.openModal);
   const totalKcal = items.reduce((s, i) => s + Number(i.kcal), 0);
+  const units = groupMealLogs(items);
 
   return (
     <div
@@ -44,14 +51,23 @@ export function MealCard({
           {Math.round(totalKcal)} kcal
         </span>
       </div>
-      {items.map((it) => (
-        <FoodLogItem
-          key={it.id}
-          item={it}
-          onClick={onEdit ? () => onEdit(it.id) : undefined}
-          onDelete={onDelete ? () => onDelete(it.id) : undefined}
-        />
-      ))}
+      {units.map((unit) =>
+        unit.kind === "group" ? (
+          <RecipeLogCard
+            key={unit.groupId}
+            group={unit}
+            onClick={onOpenGroup ? () => onOpenGroup(unit) : undefined}
+            onDelete={onDeleteGroup ? () => onDeleteGroup(unit) : undefined}
+          />
+        ) : (
+          <FoodLogItem
+            key={unit.item.id}
+            item={unit.item}
+            onClick={onEdit ? () => onEdit(unit.item.id) : undefined}
+            onDelete={onDelete ? () => onDelete(unit.item.id) : undefined}
+          />
+        ),
+      )}
       {!readOnly && (
         <button
           onClick={() => router.push(`/search?meal=${meal}`)}

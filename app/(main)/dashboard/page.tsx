@@ -11,9 +11,11 @@ import { MacroPills } from "@/components/dashboard/MacroPills";
 import { MealsList } from "@/components/dashboard/MealsList";
 import { useUIStore } from "@/store/useUIStore";
 import { EditFoodModal } from "@/components/modals/EditFoodModal";
+import { RecipeLogModal } from "@/components/modals/RecipeLogModal";
 import { SaveFavModal } from "@/components/modals/SaveFavModal";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { InlineLoading } from "@/components/ui/Loading";
+import type { RecipeGroup } from "@/lib/utils/groupLogs";
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -22,6 +24,8 @@ export default function DashboardPage() {
   const openModal = useUIStore((s) => s.openModal);
   const showToast = useUIStore((s) => s.showToast);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingDeleteGroup, setPendingDeleteGroup] =
+    useState<RecipeGroup | null>(null);
 
   const { logs, loading, refresh, remove } = useFoodLogs(user?.id, date);
   const totals = sumLogs(logs);
@@ -42,6 +46,14 @@ export default function DashboardPage() {
     await remove(pendingDeleteId);
     setPendingDeleteId(null);
     showToast("Namirnica obrisana");
+  };
+
+  const onDeleteGroup = async () => {
+    if (!pendingDeleteGroup) return;
+    const group = pendingDeleteGroup;
+    setPendingDeleteGroup(null);
+    await Promise.all(group.items.map((it) => remove(it.id)));
+    showToast("Recept obrisan iz dnevnika");
   };
 
   return (
@@ -65,10 +77,13 @@ export default function DashboardPage() {
           logs={logs}
           onEdit={onEdit}
           onDelete={(id) => setPendingDeleteId(id)}
+          onOpenGroup={(group) => openModal("recipeLog", { groupId: group.groupId })}
+          onDeleteGroup={(group) => setPendingDeleteGroup(group)}
         />
       )}
       <div className="h-5" />
       <EditFoodModal onSaved={refresh} />
+      <RecipeLogModal logs={logs} onChanged={refresh} />
       <SaveFavModal onSaved={refresh} />
       <ConfirmPopup
         open={pendingDeleteId !== null}
@@ -87,6 +102,25 @@ export default function DashboardPage() {
           text: "Da",
           variant: "orange",
           onClick: onDelete,
+        }}
+      />
+      <ConfirmPopup
+        open={pendingDeleteGroup !== null}
+        question={
+          pendingDeleteGroup
+            ? `Obrisati recept \"${pendingDeleteGroup.name}\" (${pendingDeleteGroup.items.length} ${pendingDeleteGroup.items.length === 1 ? "namirnica" : "namirnice"}) iz dnevnika?`
+            : "Obrisati recept iz dnevnika?"
+        }
+        onClose={() => setPendingDeleteGroup(null)}
+        button1={{
+          text: "Ne",
+          variant: "cancel",
+          onClick: () => setPendingDeleteGroup(null),
+        }}
+        button2={{
+          text: "Da",
+          variant: "orange",
+          onClick: onDeleteGroup,
         }}
       />
     </>

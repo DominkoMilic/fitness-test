@@ -74,6 +74,10 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
     );
     const ds = dateForOffset(offset);
     const ratio = portions / people;
+    // Tag every row of this added portion with one shared group id so the
+    // dashboard collapses them into a single recipe card. crypto.randomUUID is
+    // available in all browsers this PWA targets.
+    const groupId = crypto.randomUUID();
     await insertLogs(
       recipe.items.map((it) => ({
         user_id: user.id,
@@ -86,6 +90,9 @@ export function AddRecipeModal({ onAdded }: { onAdded?: () => void }) {
         u: round1(it.u * ratio),
         m: round1(it.m * ratio),
         pieces: it.pieces == null ? null : round1(it.pieces * ratio),
+        group_id: groupId,
+        group_name: recipe.name,
+        group_portions: portions,
       })),
     );
     onAdded?.();

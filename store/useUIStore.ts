@@ -18,7 +18,8 @@ export type ModalKind =
   | "editRecipe"
   | "newRecipe"
   | "syncPreview"
-  | "manualKcal";
+  | "manualKcal"
+  | "recipeLog";
 
 type UIState = {
   loading: boolean;

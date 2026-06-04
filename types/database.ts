@@ -158,11 +158,23 @@ export type FoodLogRow = {
   u: number;
   m: number;
   pieces: number | null;
+  // Recipe grouping: rows sharing a group_id were added together from one
+  // recipe-portion. NULL for ordinary single-food logs. See
+  // 2026-06-04_food-logs-recipe-group.sql.
+  group_id: string | null;
+  group_name: string | null;
+  group_portions: number | null;
   created_at: string;
 };
-export type FoodLogInsert = Omit<FoodLogRow, "id" | "created_at"> & {
+export type FoodLogInsert = Omit<
+  FoodLogRow,
+  "id" | "created_at" | "group_id" | "group_name" | "group_portions"
+> & {
   id?: string;
   created_at?: string;
+  group_id?: string | null;
+  group_name?: string | null;
+  group_portions?: number | null;
 };
 
 export type FavoriteItem = {
