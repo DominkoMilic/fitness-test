@@ -69,9 +69,35 @@ function toIndexed(food: FoodEntry): Indexed {
   return { ...food, _searchKey: key };
 }
 
+// Min token length Fuse will fuzzy-match. Tokens shorter than this (e.g. a
+// bare digit "2") get zero Fuse hits, so we match them by substring instead.
+const MIN_FUZZY_LEN = (FUSE_OPTIONS.minMatchCharLength as number) ?? 2;
+
+type TokenHit = { item: Indexed; goodness: number };
+
 export function createFoodSearchIndex(foods: FoodEntry[]): FoodSearchIndex {
   const indexed = foods.map(toIndexed);
   const fuse = new Fuse(indexed, FUSE_OPTIONS);
+
+  // Hits for one token. Short tokens (below Fuse's min length, e.g. "2" in
+  // "mlijeko 2" → "Mlijeko 2,8%") can't go through Fuse, so we match them as a
+  // plain substring of the normalized key — exact and cheap. Longer tokens use
+  // fuzzy Fuse matching as before.
+  function tokenHits(token: string, perTokenLimit: number): TokenHit[] {
+    if (token.length < MIN_FUZZY_LEN) {
+      const out: TokenHit[] = [];
+      for (const item of indexed) {
+        // goodness 1 = treated as a perfect hit; substring is exact.
+        if (item._searchKey.includes(token)) out.push({ item, goodness: 1 });
+      }
+      return out;
+    }
+    return fuse.search(token, { limit: perTokenLimit }).map((h) => ({
+      item: h.item,
+      // Fuse score: 0 = perfect, 1 = worst. Invert so we sum "goodness".
+      goodness: 1 - (h.score ?? 1),
+    }));
+  }
 
   return {
     size: indexed.length,
@@ -84,11 +110,11 @@ export function createFoodSearchIndex(foods: FoodEntry[]): FoodSearchIndex {
       const tokens = tokenize(normalized);
       if (tokens.length === 0) return [];
 
-      // Fast path: single token → direct Fuse search.
+      // Fast path: single token.
       if (tokens.length === 1) {
-        return fuse
-          .search(tokens[0], { limit })
-          .map((r) => stripIndexed(r.item));
+        return tokenHits(tokens[0], limit)
+          .slice(0, limit)
+          .map((h) => stripIndexed(h.item));
       }
 
       // Multi-token AND: intersect per-token result sets, aggregate scores.
@@ -99,20 +125,18 @@ export function createFoodSearchIndex(foods: FoodEntry[]): FoodSearchIndex {
       const acc = new Map<FoodEntry["id"], Acc>();
 
       tokens.forEach((token, tokenIdx) => {
-        const hits = fuse.search(token, { limit: perTokenLimit });
+        const hits = tokenHits(token, perTokenLimit);
         const seenThisToken = new Set<FoodEntry["id"]>();
 
         for (const hit of hits) {
           const id = hit.item.id;
           seenThisToken.add(id);
-          // Fuse score: 0 = perfect, 1 = worst. Invert so we sum "goodness".
-          const goodness = 1 - (hit.score ?? 1);
           const prev = acc.get(id);
           if (prev) {
-            prev.score += goodness;
+            prev.score += hit.goodness;
             prev.hits++;
           } else if (tokenIdx === 0) {
-            acc.set(id, { item: hit.item, score: goodness, hits: 1 });
+            acc.set(id, { item: hit.item, score: hit.goodness, hits: 1 });
           }
           // For tokens after the first we ONLY update existing entries —
           // a new id appearing here can't satisfy earlier tokens, so it
