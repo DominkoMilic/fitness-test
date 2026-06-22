@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -8,25 +8,20 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { MEAL_OPTIONS } from "@/lib/constants/meals";
 import { updateFavorite } from "@/lib/api/favorites";
 import { useFoods } from "@/hooks/useFoods";
-import { macroForGrams } from "@/lib/utils/macros";
 import type { FavoriteRow, MealKey } from "@/types/database";
 import type { FoodEntry } from "@/types/app";
-
-type EditItem = {
-  name: string;
-  grams: number;
-  kcal: number;
-  p: number;
-  u: number;
-  m: number;
-  pieces: number | null;
-  // per-gram rates for scaling
-  rKcal: number;
-  rP: number;
-  rU: number;
-  rM: number;
-  pieceG: number | null;
-};
+import {
+  changeItemUnit,
+  fromStoredItem,
+  IngredientAddPanel,
+  itemDisplayQty,
+  reconcileItemQty,
+  toStoredItem,
+  unitDropdownOptions,
+  unitsForItem,
+  type RecipeEditItem,
+} from "./IngredientAmountFields";
+import type { AmountUnit } from "@/lib/utils/macros";
 
 type Payload = { fav: FavoriteRow };
 
@@ -40,46 +35,29 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
 
   const [name, setName] = useState("");
   const [meal, setMeal] = useState<MealKey>("dorucak");
-  const [items, setItems] = useState<EditItem[]>([]);
+  const [items, setItems] = useState<RecipeEditItem[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Add food panel state
   const [showAdd, setShowAdd] = useState(false);
   const [addSearch, setAddSearch] = useState("");
   const [addFood, setAddFood] = useState<FoodEntry | null>(null);
-  const [addQty, setAddQty] = useState(100);
+  const [lastPayload, setLastPayload] = useState<Payload | null>(null);
 
-  useEffect(() => {
-    if (modal === "editFav" && payload) {
-      const fav = payload.fav;
-      setName(fav.name);
-      setMeal(fav.meal);
-      setItems(
-        fav.items.map((it) => {
-          const g = Number(it.grams) || 1;
-          const pcs = it.pieces ? Number(it.pieces) : null;
-          return {
-            name: it.name,
-            grams: g,
-            kcal: Number(it.kcal),
-            p: Number(it.p),
-            u: Number(it.u),
-            m: Number(it.m),
-            pieces: pcs,
-            rKcal: Number(it.kcal) / g,
-            rP: Number(it.p) / g,
-            rU: Number(it.u) / g,
-            rM: Number(it.m) / g,
-            pieceG: pcs ? g / pcs : null,
-          };
-        }),
-      );
-      setShowAdd(false);
-      setAddSearch("");
-      setAddFood(null);
-      setAddQty(100);
-    }
-  }, [modal, payload]);
+  // Initialise form from payload on open. Render-phase guard (like
+  // AddFoodModal) instead of an effect, to avoid cascading-render warnings.
+  if (modal === "editFav" && payload && lastPayload !== payload) {
+    setLastPayload(payload);
+    const fav = payload.fav;
+    setName(fav.name);
+    setMeal(fav.meal);
+    setItems(fav.items.map(fromStoredItem));
+    setShowAdd(false);
+    setAddSearch("");
+    setAddFood(null);
+  } else if (modal !== "editFav" && lastPayload) {
+    setLastPayload(null);
+  }
 
   // search results for add panel
   const searchResults = useMemo(() => {
@@ -90,40 +68,9 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
 
   if (modal !== "editFav" || !payload) return null;
 
-  const updateGrams = (idx: number, val: number) => {
+  const updateQty = (idx: number, val: number) => {
     setItems((prev) =>
-      prev.map((it, i) => {
-        if (i !== idx) return it;
-        const g = Math.max(0, val);
-        return {
-          ...it,
-          grams: g,
-          kcal: g * it.rKcal,
-          p: g * it.rP,
-          u: g * it.rU,
-          m: g * it.rM,
-          pieces: null,
-        };
-      }),
-    );
-  };
-
-  const updatePieces = (idx: number, val: number) => {
-    setItems((prev) =>
-      prev.map((it, i) => {
-        if (i !== idx) return it;
-        const pcs = Math.max(0, val);
-        const g = pcs * (it.pieceG ?? 1);
-        return {
-          ...it,
-          grams: g,
-          kcal: g * it.rKcal,
-          p: g * it.rP,
-          u: g * it.rU,
-          m: g * it.rM,
-          pieces: pcs,
-        };
-      }),
+      prev.map((it, i) => (i === idx ? reconcileItemQty(it, val) : it)),
     );
   };
 
@@ -133,37 +80,23 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
   const selectFood = (food: FoodEntry) => {
     setAddFood(food);
     setAddSearch(food.name);
-    setAddQty(100);
   };
 
-  const confirmAdd = () => {
-    if (!addFood) return;
-    if (!addQty || addQty <= 0) {
-      showToast("Količina mora biti veća od 0");
-      return;
-    }
-    const m = macroForGrams(addFood, addQty);
-    setItems((prev) => [
-      ...prev,
-      {
-        name: addFood.name,
-        grams: addQty,
-        kcal: m.kcal,
-        p: m.p,
-        u: m.u,
-        m: m.m,
-        pieces: null,
-        rKcal: addFood.kcal / 100,
-        rP: addFood.p / 100,
-        rU: addFood.u / 100,
-        rM: addFood.m / 100,
-        pieceG: addFood.piece_g ?? null,
-      },
-    ]);
+  const resetAdd = () => {
     setShowAdd(false);
     setAddSearch("");
     setAddFood(null);
-    setAddQty(100);
+  };
+
+  const onItemAdded = (item: RecipeEditItem) => {
+    setItems((prev) => [...prev, item]);
+    resetAdd();
+  };
+
+  const changeUnit = (idx: number, unit: AmountUnit) => {
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? changeItemUnit(it, unit, foods) : it)),
+    );
   };
 
   const onConfirm = async () => {
@@ -180,15 +113,7 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
       return;
     }
     setSaving(true);
-    const outItems = items.map((it) => ({
-      name: it.name,
-      grams: Math.round(it.grams * 10) / 10,
-      kcal: Math.round(it.kcal * 10) / 10,
-      p: Math.round(it.p * 10) / 10,
-      u: Math.round(it.u * 10) / 10,
-      m: Math.round(it.m * 10) / 10,
-      pieces: it.pieces,
-    }));
+    const outItems = items.map(toStoredItem);
     const totals = outItems.reduce(
       (a, i) => ({
         kcal: a.kcal + i.kcal,
@@ -299,14 +224,10 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
                 type="number"
                 inputMode="decimal"
                 value={(() => {
-                  const v = it.pieces !== null ? it.pieces : it.grams;
+                  const v = itemDisplayQty(it);
                   return v === 0 ? "" : v;
                 })()}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value) || 0;
-                  if (it.pieces !== null) updatePieces(idx, val);
-                  else updateGrams(idx, val);
-                }}
+                onChange={(e) => updateQty(idx, parseFloat(e.target.value) || 0)}
                 onFocus={(e) => {
                   const input = e.currentTarget;
                   setTimeout(() => input.select(), 0);
@@ -314,8 +235,28 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
                 className="w-20 text-center text-sm font-bold border border-border rounded-lg px-2 py-1.5 bg-white outline-none focus:border-blue-400"
                 style={{ color: "var(--color-navy)" }}
               />
+              {(() => {
+                const units = unitsForItem(it, foods);
+                return units.length > 1 ? (
+                  <Dropdown
+                    value={it.unit}
+                    onChange={(u) => changeUnit(idx, u)}
+                    options={unitDropdownOptions(units)}
+                    variant="pill"
+                    align="left"
+                    ariaLabel="Mjerna jedinica"
+                  />
+                ) : (
+                  <span
+                    className="text-xs"
+                    style={{ color: "var(--color-muted)" }}
+                  >
+                    g
+                  </span>
+                );
+              })()}
               <span className="text-xs" style={{ color: "var(--color-muted)" }}>
-                {it.pieces !== null ? "kom" : "g"} · {Math.round(it.kcal)} kcal
+                · {Math.round(it.kcal)} kcal
               </span>
             </div>
           </div>
@@ -369,50 +310,11 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
             </div>
           )}
           {addFood && (
-            <>
-              <div
-                className="text-[11px] font-bold uppercase tracking-wider mb-1.5 mt-2"
-                style={{ color: "var(--color-muted)" }}
-              >
-                Količina (g)
-              </div>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={addQty === 0 ? "" : addQty}
-                onChange={(e) => setAddQty(parseFloat(e.target.value) || 0)}
-                onFocus={(e) => {
-                  const input = e.currentTarget;
-                  setTimeout(() => input.select(), 0);
-                }}
-                className="mb-2"
-              />
-              <div
-                className="text-xs mb-2"
-                style={{ color: "var(--color-muted)" }}
-              >
-                {Math.round(macroForGrams(addFood, addQty).kcal)} kcal
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setShowAdd(false);
-                    setAddFood(null);
-                    setAddSearch("");
-                  }}
-                  className="flex-1 py-2 rounded-xl border border-border text-xs font-semibold"
-                  style={{ color: "var(--color-muted)" }}
-                >
-                  Odustani
-                </button>
-                <button
-                  onClick={confirmAdd}
-                  className="flex-2 py-2 rounded-xl bg-orange text-white text-xs font-bold"
-                >
-                  + Dodaj
-                </button>
-              </div>
-            </>
+            <IngredientAddPanel
+              food={addFood}
+              onAdd={onItemAdded}
+              onCancel={resetAdd}
+            />
           )}
           {!addFood && (
             <button

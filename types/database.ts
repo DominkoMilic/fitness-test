@@ -185,6 +185,11 @@ export type FavoriteItem = {
   u: number;
   m: number;
   pieces: number | null;
+  // Unit the user picked when adding this ingredient, so editing restores it.
+  // Absent on legacy rows (inferred from `pieces` on read). Matches AmountUnit.
+  unit?: "g" | "kom" | "salica" | "jusna_zlica" | "cajna_zlica";
+  // Original input value in the chosen unit (e.g. 1 for "1 šalica").
+  qty?: number;
 };
 
 export type FavoriteRow = {

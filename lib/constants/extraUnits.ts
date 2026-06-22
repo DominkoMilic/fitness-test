@@ -14,19 +14,19 @@ type Forms = { singular: string; paucal: string; plural: string };
 
 export const EXTRA_UNIT_FORMS: Record<ExtraUnit, Forms> = {
   salica: {
-    singular: "šalica / čaša",
-    paucal: "šalice / čaše",
-    plural: "šalica / čaša",
+    singular: "Šalica / čaša",
+    paucal: "Šalice / čaše",
+    plural: "Šalice / čaše",
   },
   jusna_zlica: {
-    singular: "jušna žlica",
-    paucal: "jušne žlice",
-    plural: "jušnih žlica",
+    singular: "Jušna žlica",
+    paucal: "Jušne žlice",
+    plural: "Jušnih žlica",
   },
   cajna_zlica: {
-    singular: "čajna žlica",
-    paucal: "čajne žlice",
-    plural: "čajnih žlica",
+    singular: "Čajna žlica",
+    paucal: "Čajne žlice",
+    plural: "Čajnih žlica",
   },
 };
 
