@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Dropdown } from "@/components/ui/Dropdown";
+import { BarcodeScanner } from "@/components/search/BarcodeScanner";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { MEAL_OPTIONS } from "@/lib/constants/meals";
@@ -42,6 +43,7 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [addSearch, setAddSearch] = useState("");
   const [addFood, setAddFood] = useState<FoodEntry | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
   const [lastPayload, setLastPayload] = useState<Payload | null>(null);
 
   // Initialise form from payload on open. Render-phase guard (like
@@ -55,6 +57,7 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
     setShowAdd(false);
     setAddSearch("");
     setAddFood(null);
+    setScanOpen(false);
   } else if (modal !== "editFav" && lastPayload) {
     setLastPayload(null);
   }
@@ -91,6 +94,13 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
   const onItemAdded = (item: RecipeEditItem) => {
     setItems((prev) => [...prev, item]);
     resetAdd();
+  };
+
+  // Scanned food flows into the same add path as a searched one.
+  const onScanned = (food: FoodEntry) => {
+    selectFood(food);
+    setShowAdd(true);
+    setScanOpen(false);
   };
 
   const changeUnit = (idx: number, unit: AmountUnit) => {
@@ -326,14 +336,38 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
             </button>
           )}
         </div>
+      ) : scanOpen ? (
+        <div className="mb-3 rounded-xl border border-dashed border-border overflow-hidden">
+          <BarcodeScanner
+            open={scanOpen}
+            onClose={() => setScanOpen(false)}
+            onResult={onScanned}
+          />
+          <button
+            onClick={() => setScanOpen(false)}
+            className="w-full py-2.5 border-t border-border text-xs font-semibold"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Zatvori skener
+          </button>
+        </div>
       ) : (
-        <button
-          onClick={() => setShowAdd(true)}
-          className="w-full mb-3 py-2.5 rounded-xl border border-dashed border-border text-xs font-semibold"
-          style={{ color: "var(--color-muted)" }}
-        >
-          + Dodaj namirnicu
-        </button>
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex-1 py-2.5 rounded-xl border border-dashed border-border text-xs font-semibold"
+            style={{ color: "var(--color-muted)" }}
+          >
+            + Dodaj namirnicu
+          </button>
+          <button
+            onClick={() => setScanOpen(true)}
+            className="flex-1 py-2.5 rounded-xl border border-dashed border-border text-xs font-semibold"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Skeniraj barkod
+          </button>
+        </div>
       )}
 
       {/* Actions */}
