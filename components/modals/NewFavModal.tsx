@@ -320,21 +320,6 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
             </button>
           )}
         </div>
-      ) : scanOpen ? (
-        <div className="mb-3 rounded-xl border border-dashed border-border overflow-hidden">
-          <BarcodeScanner
-            open={scanOpen}
-            onClose={() => setScanOpen(false)}
-            onResult={onScanned}
-          />
-          <button
-            onClick={() => setScanOpen(false)}
-            className="w-full py-2.5 border-t border-border text-xs font-semibold"
-            style={{ color: "var(--color-muted)" }}
-          >
-            Zatvori skener
-          </button>
-        </div>
       ) : (
         <div className="flex gap-2 mb-3">
           <button
@@ -353,6 +338,20 @@ export function NewFavModal({ onCreated }: { onCreated?: () => void }) {
           </button>
         </div>
       )}
+
+      <Modal open={scanOpen} onClose={() => setScanOpen(false)}>
+        <div
+          className="text-base font-extrabold mb-3"
+          style={{ color: "var(--color-navy)" }}
+        >
+          Skeniraj barkod
+        </div>
+        <BarcodeScanner
+          open={scanOpen}
+          onClose={() => setScanOpen(false)}
+          onResult={onScanned}
+        />
+      </Modal>
 
       <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] bg-white border-t border-border/70">
         <div className="flex gap-2.5">
