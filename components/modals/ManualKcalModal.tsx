@@ -25,6 +25,9 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
 
   const [kcalStr, setKcalStr] = useState<string>("");
   const [name, setName] = useState<string>("");
+  const [pStr, setPStr] = useState<string>("");
+  const [uStr, setUStr] = useState<string>("");
+  const [mStr, setMStr] = useState<string>("");
   const [meal, setMeal] = useState<MealKey>("dorucak");
   const [lastPayload, setLastPayload] = useState<Payload | null>(null);
 
@@ -32,6 +35,9 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
     setLastPayload(payload);
     setKcalStr("");
     setName("");
+    setPStr("");
+    setUStr("");
+    setMStr("");
     setMeal(payload?.defaultMeal ?? "dorucak");
   } else if (modal !== "manualKcal" && lastPayload) {
     setLastPayload(null);
@@ -39,11 +45,23 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
 
   if (modal !== "manualKcal") return null;
   const kcal = parseFloat(kcalStr) || 0;
+  // Macros are optional — empty fields count as 0.
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+  const p = Math.max(0, round1(parseFloat(pStr) || 0));
+  const u = Math.max(0, round1(parseFloat(uStr) || 0));
+  const m = Math.max(0, round1(parseFloat(mStr) || 0));
+  const hasNegativeMacro = [pStr, uStr, mStr].some(
+    (s) => s.trim() !== "" && parseFloat(s) < 0,
+  );
 
   const onConfirm = async () => {
     if (!user) return;
     if (!kcal || kcal <= 0) {
       showToast("Unesi broj kalorija veći od 0");
+      return;
+    }
+    if (hasNegativeMacro) {
+      showToast("Makronutrijenti moraju biti 0 ili više");
       return;
     }
     const finalName = name.trim() || DEFAULT_NAME;
@@ -58,9 +76,9 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
         food_name: finalName,
         grams: 0,
         kcal: finalKcal,
-        p: 0,
-        u: 0,
-        m: 0,
+        p,
+        u,
+        m,
         pieces: null,
       });
       onAdded?.();
@@ -141,11 +159,83 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
       )}
 
       <div
-        className="text-[11px] mb-4 leading-snug"
+        className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
         style={{ color: "var(--color-muted)" }}
       >
-        Proteini, ugljikohidrati i masti se ne računaju (0g).
+        Makronutrijenti (neobavezno)
       </div>
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        <div>
+          <Input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            value={pStr}
+            onChange={(e) => setPStr(e.target.value)}
+            placeholder="0"
+            aria-label="Proteini (g)"
+          />
+          <div
+            className="text-[10px] font-semibold text-center mt-1"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Proteini (g)
+          </div>
+        </div>
+        <div>
+          <Input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            value={uStr}
+            onChange={(e) => setUStr(e.target.value)}
+            placeholder="0"
+            aria-label="Ugljikohidrati (g)"
+          />
+          <div
+            className="text-[10px] font-semibold text-center mt-1"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Ugljik. (g)
+          </div>
+        </div>
+        <div>
+          <Input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            value={mStr}
+            onChange={(e) => setMStr(e.target.value)}
+            placeholder="0"
+            aria-label="Masti (g)"
+          />
+          <div
+            className="text-[10px] font-semibold text-center mt-1"
+            style={{ color: "var(--color-muted)" }}
+          >
+            Masti (g)
+          </div>
+        </div>
+      </div>
+      {hasNegativeMacro ? (
+        <div
+          className="mb-4 px-3 py-1.5 rounded-full inline-flex text-[11px] font-bold border"
+          style={{
+            color: "var(--color-orange)",
+            background: "rgba(255,138,0,0.08)",
+            borderColor: "rgba(255,138,0,0.35)",
+          }}
+        >
+          Makronutrijenti moraju biti 0 ili više
+        </div>
+      ) : (
+        <div
+          className="text-[11px] mb-4 leading-snug"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Ostavi prazno ako ne želiš unijeti makronutrijente.
+        </div>
+      )}
 
       <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] bg-white border-t border-border/70">
         <div className="flex gap-2.5">
