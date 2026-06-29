@@ -41,6 +41,7 @@ export function NewRecipeModal({ onCreated }: { onCreated?: () => void }) {
   const [addSearch, setAddSearch] = useState("");
   const [addFood, setAddFood] = useState<FoodEntry | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [lastModal, setLastModal] = useState<typeof modal>(null);
 
   if (modal === "newRecipe" && lastModal !== "newRecipe") {
@@ -53,6 +54,7 @@ export function NewRecipeModal({ onCreated }: { onCreated?: () => void }) {
     setAddSearch("");
     setAddFood(null);
     setScanOpen(false);
+    setSearchFocused(false);
   } else if (modal !== "newRecipe" && lastModal === "newRecipe") {
     setLastModal(modal);
   }
@@ -326,6 +328,8 @@ export function NewRecipeModal({ onCreated }: { onCreated?: () => void }) {
               setAddSearch(e.target.value);
               setAddFood(null);
             }}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             placeholder="npr. piletina, skuta…"
             className="mb-1"
           />
@@ -399,6 +403,7 @@ export function NewRecipeModal({ onCreated }: { onCreated?: () => void }) {
         />
       </Modal>
 
+      {!(searchFocused && addSearch.trim() !== "") && (
       <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] bg-white border-t border-border/70">
         <div className="flex gap-2.5">
           <button
@@ -417,6 +422,7 @@ export function NewRecipeModal({ onCreated }: { onCreated?: () => void }) {
           </button>
         </div>
       </div>
+      )}
     </Modal>
   );
 }
