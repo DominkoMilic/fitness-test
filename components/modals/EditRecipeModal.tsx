@@ -4,6 +4,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { BarcodeScanner } from "@/components/search/BarcodeScanner";
+import { AnimatePresence, motion } from "framer-motion";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { MEAL_OPTIONS } from "@/lib/constants/meals";
@@ -412,8 +413,16 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
         />
       </Modal>
 
-      {!(searchFocused && addSearch.trim() !== "") && (
-      <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] bg-white border-t border-border/70">
+      <AnimatePresence>
+        {!(searchFocused && addSearch.trim() !== "") && (
+          <motion.div
+            key="footer-actions"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="sticky bottom-0 -mx-5 px-5 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] bg-white border-t border-border/70"
+          >
         <div className="flex gap-2.5">
           <button
             onClick={closeModal}
@@ -430,8 +439,9 @@ export function EditRecipeModal({ onSaved }: { onSaved?: () => void }) {
             Spremi
           </button>
         </div>
-      </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Modal>
   );
 }
