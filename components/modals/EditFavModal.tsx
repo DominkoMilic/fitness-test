@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -9,6 +9,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { MEAL_OPTIONS } from "@/lib/constants/meals";
 import { updateFavorite } from "@/lib/api/favorites";
 import { useFoods } from "@/hooks/useFoods";
+import { useFoodSearch } from "@/hooks/useFoodSearch";
 import type { FavoriteRow, MealKey } from "@/types/database";
 import type { FoodEntry } from "@/types/app";
 import {
@@ -62,12 +63,12 @@ export function EditFavModal({ onSaved }: { onSaved?: () => void }) {
     setLastPayload(null);
   }
 
-  // search results for add panel
-  const searchResults = useMemo(() => {
-    if (!addSearch.trim() || addFood) return [];
-    const q = addSearch.toLowerCase();
-    return foods.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 8);
-  }, [addSearch, addFood, foods]);
+  // Fuzzy, diacritic-tolerant search (same engine as the /search page).
+  const { results: searchResults } = useFoodSearch(
+    foods,
+    addFood ? "" : addSearch,
+    { limit: 8, minLength: 2 },
+  );
 
   if (modal !== "editFav" || !payload) return null;
 

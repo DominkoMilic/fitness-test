@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 type Props = {
   open: boolean;
@@ -22,6 +23,9 @@ export function Modal({ open, onClose, children, className = "" }: Props) {
   const openedWithHistoryRef = useRef(false);
   const closingFromPopRef = useRef(false);
   const [kbdInset, setKbdInset] = useState(0);
+
+  // Block page scroll behind the modal; restored when the last modal closes.
+  useScrollLock(open);
 
   // iOS Safari quirk: when the on-screen keyboard opens, fixed-position
   // elements stay anchored to the layout viewport, but the visual viewport
