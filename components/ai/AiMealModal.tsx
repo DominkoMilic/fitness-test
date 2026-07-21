@@ -21,6 +21,22 @@ import type { MealKey } from "@/types/database";
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const MAX_TEXT = 300;
 
+// Shown for any server/model/network failure so raw internals never reach the
+// user. Deliberate, user-actionable Croatian messages from the API (rate
+// limit, image too large, unsupported format, "odaberite obrok", …) are kept
+// as-is; only technical errors are replaced.
+const GENERIC_ERROR =
+  "Došlo je do pogreške na serveru. Već radimo na popravku, molimo pokušajte ponovno za koji trenutak.";
+
+const TECHNICAL_ERROR =
+  /(HTTP\b|\b5\d\d\b|Gemini|fetch|Failed|Unauthorized|Request failed|permission denied|non-JSON|models?\s+failed|timeout|network|ECONN|TypeError)/i;
+
+function friendlyError(e: unknown): string {
+  const msg = (e as Error)?.message?.trim();
+  if (!msg) return GENERIC_ERROR;
+  return TECHNICAL_ERROR.test(msg) ? GENERIC_ERROR : msg;
+}
+
 type Step = "input" | "loading" | "result" | "offtopic" | "error";
 
 // Editable item carries a per-100g basis so grams edits recompute macros the
@@ -158,7 +174,7 @@ export function AiMealModal() {
       setTitle(r.title);
       setStep("result");
     } catch (e) {
-      setMessage((e as Error).message || "AI analiza nije uspjela");
+      setMessage(friendlyError(e));
       setStep("error");
     }
   };
@@ -236,7 +252,7 @@ export function AiMealModal() {
       closeModal();
       showToast(`AI obrok dodan u: ${MEAL_NAMES[meal]}`);
     } catch (e) {
-      showToast((e as Error).message || "Greška pri spremanju");
+      showToast(friendlyError(e));
       setSaving(false);
     }
   };
