@@ -5,6 +5,8 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useAuthStore } from "@/store/useAuthStore";
 import { GoalModal } from "@/components/modals/GoalModal";
+import { AiFab } from "@/components/ai/AiFab";
+import { AiMealModal } from "@/components/ai/AiMealModal";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -40,7 +42,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <Header />
       <main style={{ paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>{children}</main>
       <BottomNav />
+      <AiFab />
       <GoalModal />
+      <AiMealModal />
     </>
   );
 }
