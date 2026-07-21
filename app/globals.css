@@ -69,6 +69,25 @@ a:active { opacity: 0.6; }
   }
 }
 
+/* Secondary/cancel button shade. The old pattern (bg = --color-bg) matched
+ * the page background and relied on the global brightness(1.07) hover, which
+ * is invisible on light surfaces. This gives a distinct soft shade with a
+ * real hover/active background change (and overrides the brightness filter). */
+.kf-btn-secondary {
+  background-color: #e9ecf1;
+  border: 1.5px solid rgba(27, 50, 85, 0.14);
+}
+@media (hover: hover) {
+  .kf-btn-secondary:not(:disabled):hover {
+    background-color: #dde1ea;
+    filter: none;
+  }
+}
+.kf-btn-secondary:not(:disabled):active {
+  background-color: #d0d6e1;
+  filter: none;
+}
+
 .kf-icon-btn {
   transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
   border-radius: 9999px;
