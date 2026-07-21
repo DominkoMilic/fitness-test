@@ -246,6 +246,7 @@ export function AiMealModal() {
         kcalMin: result.kcalMin,
         kcalMax: result.kcalMax,
         confidence: result.confidence,
+        model: result.model,
         addToDiary: true,
       });
       emitLogsChanged();

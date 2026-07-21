@@ -83,9 +83,15 @@ export async function POST(req: Request) {
   }
 
   // ── Gemini call ───────────────────────────────────────────────────
-  let raw;
+  // Tries the primary model, falls back across the configured chain if it's
+  // overloaded / unavailable / returns unusable data.
+  let raw, usedModel;
   try {
-    raw = await analyzeWithGemini({ imageBase64, mime, text });
+    ({ raw, model: usedModel } = await analyzeWithGemini({
+      imageBase64,
+      mime,
+      text,
+    }));
   } catch (e) {
     return NextResponse.json(
       { error: `AI analiza nije uspjela: ${(e as Error).message}` },
@@ -99,5 +105,6 @@ export async function POST(req: Request) {
   }
 
   const result = await buildAnalysisFromRaw(raw);
+  result.model = usedModel;
   return NextResponse.json({ result });
 }

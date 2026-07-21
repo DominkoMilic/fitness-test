@@ -82,13 +82,29 @@ const RESPONSE_SCHEMA = {
   required: ["isFood", "title", "confidence", "items"],
 } as const;
 
+// Ordered fallback chain used when GEMINI_FALLBACK_MODELS is not set. If the
+// primary model is overloaded / unavailable / returns unusable data, we retry
+// the next one. "-latest" aliases first (resilient to pinned-model deprecations),
+// then concrete lighter models as cheaper/available backups.
+const DEFAULT_FALLBACK_MODELS = [
+  "gemini-flash-latest",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash",
+];
+
 function getConfig() {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("Missing GEMINI_API_KEY — set it in .env.local");
   }
-  const model = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
-  return { apiKey, model };
+  const primary = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
+  const fbEnv = process.env.GEMINI_FALLBACK_MODELS?.trim();
+  const fallbacks = fbEnv
+    ? fbEnv.split(",").map((s) => s.trim()).filter(Boolean)
+    : DEFAULT_FALLBACK_MODELS;
+  // Primary first, then fallbacks, de-duplicated (preserve order).
+  const models = [...new Set([primary, ...fallbacks])];
+  return { apiKey, models };
 }
 
 type GeminiApiResponse = {
@@ -132,11 +148,30 @@ function coerce(parsed: unknown): GeminiRaw {
   };
 }
 
-// Calls Gemini and returns a normalized, validated GeminiRaw. Throws on
-// transport / auth / parse failures so the route can map them to HTTP codes.
-export async function analyzeWithGemini(input: GeminiInput): Promise<GeminiRaw> {
-  const { apiKey, model } = getConfig();
+// Error thrown by a single-model attempt. `retryable` = worth trying the next
+// model in the chain (overload, 5xx, 404, transport, bad output). `empty` =
+// the model returned no candidate (safety block / empty) rather than an error.
+class GeminiModelError extends Error {
+  retryable: boolean;
+  empty: boolean;
+  constructor(message: string, opts: { retryable: boolean; empty?: boolean }) {
+    super(message);
+    this.name = "GeminiModelError";
+    this.retryable = opts.retryable;
+    this.empty = Boolean(opts.empty);
+  }
+}
 
+const EMPTY_RAW: GeminiRaw = {
+  isFood: false,
+  title: "",
+  confidence: "low",
+  items: [],
+  kcalMin: null,
+  kcalMax: null,
+};
+
+function buildRequestBody(input: GeminiInput) {
   const parts: Record<string, unknown>[] = [];
   const text = input.text?.trim();
   if (text) parts.push({ text });
@@ -157,8 +192,7 @@ export async function analyzeWithGemini(input: GeminiInput): Promise<GeminiRaw> 
       text: "Analiziraj hranu na slici i procijeni nutritivne vrijednosti.",
     });
   }
-
-  const body = {
+  return {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents: [{ role: "user", parts }],
     generationConfig: {
@@ -167,7 +201,15 @@ export async function analyzeWithGemini(input: GeminiInput): Promise<GeminiRaw> 
       responseSchema: RESPONSE_SCHEMA,
     },
   };
+}
 
+// One attempt against a single model. Throws GeminiModelError so the caller
+// can decide whether to fall back.
+async function callModel(
+  model: string,
+  apiKey: string,
+  body: object,
+): Promise<GeminiRaw> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/${model}:generateContent`, {
@@ -179,33 +221,75 @@ export async function analyzeWithGemini(input: GeminiInput): Promise<GeminiRaw> 
       body: JSON.stringify(body),
     });
   } catch (e) {
-    throw new Error(`Gemini request failed: ${(e as Error).message}`);
+    // Transport failure — try the next model.
+    throw new GeminiModelError(`${model}: request failed: ${(e as Error).message}`, {
+      retryable: true,
+    });
   }
 
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Gemini HTTP ${res.status}: ${detail.slice(0, 300)}`);
+    const detail = (await res.text().catch(() => "")).slice(0, 300);
+    // Auth/permission problems repeat on every model → don't waste calls.
+    const fatal = res.status === 401 || res.status === 403;
+    throw new GeminiModelError(`${model}: HTTP ${res.status}: ${detail}`, {
+      retryable: !fatal,
+    });
   }
 
   const data = (await res.json().catch(() => null)) as GeminiApiResponse | null;
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) {
-    // Safety block or empty candidate → treat as non-food (off-topic path).
-    return {
-      isFood: false,
-      title: "",
-      confidence: "low",
-      items: [],
-      kcalMin: null,
-      kcalMax: null,
-    };
+    // No candidate — could be a safety block or a transient hiccup. Mark it
+    // retryable+empty: try the next model, but if ALL come back empty we treat
+    // it as a genuine non-food/off-topic result rather than a hard error.
+    throw new GeminiModelError(`${model}: empty candidate`, {
+      retryable: true,
+      empty: true,
+    });
   }
 
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    return coerce(JSON.parse(raw));
   } catch {
-    throw new Error("Gemini returned non-JSON output");
+    // Malformed output — another model may do better.
+    throw new GeminiModelError(`${model}: non-JSON output`, { retryable: true });
   }
-  return coerce(parsed);
+}
+
+// Calls Gemini with automatic fallback across the configured model chain and
+// returns the validated result plus the model that produced it. Throws only
+// when every model fails with a real error (auth, or all retryables exhausted).
+export async function analyzeWithGemini(
+  input: GeminiInput,
+): Promise<{ raw: GeminiRaw; model: string }> {
+  const { apiKey, models } = getConfig();
+  const body = buildRequestBody(input);
+
+  let lastError: GeminiModelError | null = null;
+  let sawEmpty = false;
+
+  for (const model of models) {
+    try {
+      const raw = await callModel(model, apiKey, body);
+      return { raw, model };
+    } catch (e) {
+      const err =
+        e instanceof GeminiModelError
+          ? e
+          : new GeminiModelError((e as Error).message, { retryable: false });
+      lastError = err;
+      if (err.empty) sawEmpty = true;
+      // Non-retryable (e.g. auth) → stop immediately, no point trying others.
+      if (!err.retryable) throw err;
+      // Otherwise fall through to the next model.
+    }
+  }
+
+  // Every model was tried. If the only failures were "empty candidate", treat
+  // it as a legitimate non-food/safety result (off-topic path) instead of an
+  // error, so guarded content doesn't surface as a crash.
+  if (sawEmpty) {
+    return { raw: EMPTY_RAW, model: models[models.length - 1] };
+  }
+  throw lastError ?? new Error("All Gemini models failed");
 }
