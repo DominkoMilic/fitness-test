@@ -92,19 +92,24 @@ a:active { opacity: 0.6; }
  * reads as inviting/clickable, with a clear hover/active state (overrides the
  * global brightness filter, which is invisible on light surfaces). */
 .kf-tile {
-  background-color: #eef2fb;
-  border: 1.5px solid rgba(27, 50, 85, 0.12);
+  background-color: #eef3fc;
+  /* Solid, clearly visible border so the tile reads as a bounded button on
+   * the white modal even before hover. */
+  border: 1.5px solid #c3d1e8;
   color: var(--color-navy);
 }
 @media (hover: hover) {
   .kf-tile:not(:disabled):hover {
-    background-color: #e2e9f7;
-    border-color: rgba(27, 50, 85, 0.24);
+    background-color: #e0e9f8;
+    border-color: #90a9d6;
+    box-shadow: 0 2px 10px rgba(27, 50, 85, 0.12);
     filter: none;
   }
 }
 .kf-tile:not(:disabled):active {
-  background-color: #d6e0f2;
+  background-color: #d2ddf1;
+  border-color: #90a9d6;
+  box-shadow: none;
   filter: none;
 }
 
