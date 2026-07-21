@@ -56,8 +56,15 @@ export function AiMealModal() {
 
   return (
     <Modal open={open} onClose={closeModal}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/ai_assistant_image.png"
+        alt=""
+        aria-hidden="true"
+        className="absolute top-4 right-4 w-11 h-11 rounded-full object-cover shadow-sm"
+      />
       <div
-        className="text-base font-extrabold mb-1"
+        className="text-base font-extrabold mb-1 pr-14"
         style={{ color: "var(--color-navy)" }}
       >
         AI prepoznavanje obroka
@@ -106,7 +113,7 @@ export function AiMealModal() {
         <div className="grid grid-cols-2 gap-2.5 mb-3">
           <button
             onClick={() => cameraRef.current?.click()}
-            className="py-4 rounded-xl border-[1.5px] border-dashed border-border bg-bg text-[13px] font-bold flex flex-col items-center gap-1.5"
+            className="py-4 rounded-xl kf-tile text-[13px] font-bold flex flex-col items-center gap-1.5"
             style={{ color: "var(--color-navy)" }}
           >
             <span className="text-xl">📷</span>
@@ -114,7 +121,7 @@ export function AiMealModal() {
           </button>
           <button
             onClick={() => uploadRef.current?.click()}
-            className="py-4 rounded-xl border-[1.5px] border-dashed border-border bg-bg text-[13px] font-bold flex flex-col items-center gap-1.5"
+            className="py-4 rounded-xl kf-tile text-[13px] font-bold flex flex-col items-center gap-1.5"
             style={{ color: "var(--color-navy)" }}
           >
             <span className="text-xl">🖼️</span>
