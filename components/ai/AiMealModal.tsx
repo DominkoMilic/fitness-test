@@ -4,16 +4,19 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { useUIStore } from "@/store/useUIStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useDayStore } from "@/store/useDayStore";
+import { dateForOffset } from "@/lib/utils/date";
 import { prepareImage } from "@/lib/ai/image";
-import { analyzeMeal, type AnalyzeResponse } from "@/lib/api/aiMeals";
-import { MEAL_OPTIONS } from "@/lib/constants/meals";
+import { analyzeMeal, saveAnalysis, type AnalyzeResponse } from "@/lib/api/aiMeals";
+import { emitLogsChanged } from "@/lib/api/foodLogs";
+import { MEAL_NAMES, MEAL_OPTIONS } from "@/lib/constants/meals";
 import type { AiAnalysisItem, AiAnalysisResult } from "@/types/app";
 import type { MealKey } from "@/types/database";
 
-// Step 3 — analysis + guard. Calls the model: non-food input shows the
-// hardcoded off-topic message; food shows the recognized result (read-only)
-// with a meal picker. The two action buttons exist but only echo "hrana" —
-// saving to the diary is wired up in the next branches.
+// Step 4 — "Dodaj odmah" now persists the analysis and inserts it into the
+// diary (marked AI). "Uredi pa dodaj" is still a placeholder; per-item editing
+// lands in the final branch.
 const MAX_TEXT = 300;
 
 type Step = "input" | "loading" | "result" | "offtopic" | "error";
@@ -30,6 +33,8 @@ export function AiMealModal() {
   const modal = useUIStore((s) => s.modal);
   const closeModal = useUIStore((s) => s.closeModal);
   const showToast = useUIStore((s) => s.showToast);
+  const user = useAuthStore((s) => s.user);
+  const offset = useDayStore((s) => s.offset);
   const open = modal === "aiMeal";
 
   const [step, setStep] = useState<Step>("input");
@@ -39,6 +44,7 @@ export function AiMealModal() {
   const [result, setResult] = useState<AiAnalysisResult | null>(null);
   const [meal, setMeal] = useState<MealKey>("dorucak");
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const cameraRef = useRef<HTMLInputElement | null>(null);
   const uploadRef = useRef<HTMLInputElement | null>(null);
@@ -53,6 +59,7 @@ export function AiMealModal() {
     setResult(null);
     setMeal(mealByHour());
     setMessage("");
+    setSaving(false);
   } else if (!open && wasOpen) {
     setWasOpen(false);
   }
@@ -94,8 +101,32 @@ export function AiMealModal() {
     }
   };
 
-  // Placeholder for both result buttons until diary-saving is implemented.
-  const echoHrana = () => showToast("hrana");
+  const addNow = async () => {
+    if (!user || !result) return;
+    if (result.items.length === 0) {
+      showToast("Nema stavki za spremanje");
+      return;
+    }
+    setSaving(true);
+    try {
+      await saveAnalysis({
+        date: dateForOffset(offset),
+        meal,
+        title: result.title,
+        items: result.items,
+        kcalMin: result.kcalMin,
+        kcalMax: result.kcalMax,
+        confidence: result.confidence,
+        addToDiary: true,
+      });
+      emitLogsChanged();
+      closeModal();
+      showToast(`AI obrok dodan u: ${MEAL_NAMES[meal]}`);
+    } catch (e) {
+      showToast((e as Error).message || "Greška pri spremanju");
+      setSaving(false);
+    }
+  };
 
   return (
     <Modal open={open} onClose={closeModal}>
@@ -254,7 +285,7 @@ export function AiMealModal() {
         </>
       )}
 
-      {/* ── result (read-only) ── */}
+      {/* ── result ── */}
       {step === "result" && result && (
         <>
           <div
@@ -273,6 +304,14 @@ export function AiMealModal() {
               baze koriste se kad je namirnica prepoznata.
             </span>
           </div>
+          {result.confidence === "low" && (
+            <div
+              className="mb-3 px-3 py-2 rounded-lg text-[11px] font-bold"
+              style={{ background: "rgba(255,138,0,0.1)", color: "var(--color-orange)" }}
+            >
+              Niska sigurnost procjene — provjerite vrijednosti prije spremanja.
+            </div>
+          )}
 
           <div className="flex justify-between items-center bg-linear-to-br from-blue-50 to-indigo-100 rounded-xl px-3.5 py-3 mb-1.5">
             <span className="text-[13px] font-semibold" style={{ color: "var(--color-muted)" }}>
@@ -337,17 +376,19 @@ export function AiMealModal() {
 
           <StickyFooter>
             <button
-              onClick={echoHrana}
-              className="flex-1 py-3.5 rounded-xl kf-btn-secondary text-[14px] font-bold"
+              onClick={() => showToast("hrana")}
+              disabled={saving}
+              className="flex-1 py-3.5 rounded-xl kf-btn-secondary text-[14px] font-bold disabled:opacity-50"
               style={{ color: "var(--color-navy)" }}
             >
               Uredi pa dodaj
             </button>
             <button
-              onClick={echoHrana}
-              className="flex-1 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[14px] font-bold"
+              onClick={addNow}
+              disabled={saving}
+              className="flex-1 py-3.5 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[14px] font-bold disabled:opacity-50"
             >
-              Dodaj odmah
+              {saving ? "Spremam..." : "Dodaj odmah"}
             </button>
           </StickyFooter>
         </>
