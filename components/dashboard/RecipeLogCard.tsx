@@ -12,9 +12,13 @@ type Props = {
 // added portion. Tapping it opens the drill-in modal with each food.
 export function RecipeLogCard({ group, onClick, onDelete }: Props) {
   const { name, portions, items, totals } = group;
+  // AI meals reuse the recipe-group mechanism; flag them so the badge reads
+  // "AI" instead of "Recept".
+  const isAi = items.length > 0 && items.every((i) => i.source === "ai");
   const sub = [
-    portionsLabel(portions),
+    isAi ? null : portionsLabel(portions),
     `${items.length} ${items.length === 1 ? "namirnica" : "namirnice"}`,
+    isAi ? "AI procjena" : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -34,7 +38,7 @@ export function RecipeLogCard({ group, onClick, onDelete }: Props) {
                 background: "rgba(255,138,0,0.1)",
               }}
             >
-              Recept
+              {isAi ? "AI" : "Recept"}
             </span>
             <span className="text-[13px] font-semibold truncate">{name}</span>
           </div>
