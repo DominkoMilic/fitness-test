@@ -6,6 +6,7 @@ import {
   insertLog,
   updateLog as apiUpdate,
   insertLogs,
+  LOGS_CHANGED_EVENT,
 } from "@/lib/api/foodLogs";
 import type { FoodLogInsert, FoodLogRow } from "@/types/database";
 
@@ -30,6 +31,15 @@ export function useFoodLogs(userId: string | undefined, date: string) {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Re-fetch when the diary is mutated elsewhere (e.g. the AI modal in the
+  // (main) layout inserts logs outside this hook's own add/remove).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onChanged = () => refresh();
+    window.addEventListener(LOGS_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(LOGS_CHANGED_EVENT, onChanged);
   }, [refresh]);
 
   const add = async (entry: FoodLogInsert) => {

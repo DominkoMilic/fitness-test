@@ -5,6 +5,15 @@
 
 import type { FoodLogInsert, FoodLogRow } from "@/types/database";
 
+// Broadcast that the diary changed from outside a page's own useFoodLogs
+// (e.g. the AI modal mounted in the (main) layout). Listeners re-fetch.
+export const LOGS_CHANGED_EVENT = "kf-logs-changed";
+export function emitLogsChanged() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(LOGS_CHANGED_EVENT));
+  }
+}
+
 async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
   const res = await fetch(input, {
     ...init,
