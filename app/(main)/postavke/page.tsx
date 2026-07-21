@@ -159,6 +159,22 @@ export default function SettingsPage() {
         )}
       </Section>
 
+      <Section title="AI analize">
+        <p
+          className="text-[13px] mb-3 leading-snug"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Pregledaj spremljene AI procjene obroka iz fotografija.
+        </p>
+        <button
+          onClick={() => router.push("/ai/povijest")}
+          className="w-full py-3 rounded-xl border-[1.5px] border-border bg-white text-[14px] font-bold"
+          style={{ color: "var(--color-navy)" }}
+        >
+          Pregledaj AI analize
+        </button>
+      </Section>
+
       <Section title="Moji podaci (GDPR)">
         <p
           className="text-[13px] mb-3 leading-snug"
