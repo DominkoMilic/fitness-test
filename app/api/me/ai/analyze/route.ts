@@ -87,9 +87,15 @@ export async function POST(req: Request) {
   }
 
   // ── Gemini call ───────────────────────────────────────────────────
-  let raw;
+  // Tries the primary model, falls back across the configured chain if it's
+  // overloaded / unavailable / returns unusable data.
+  let raw, usedModel;
   try {
-    raw = await analyzeWithGemini({ imageBase64, mime, text });
+    ({ raw, model: usedModel } = await analyzeWithGemini({
+      imageBase64,
+      mime,
+      text,
+    }));
   } catch (e) {
     // Distinguish "Google's service is unavailable" from "we broke something".
     // `userMessage` is a deliberate, user-facing string the client shows
@@ -116,5 +122,6 @@ export async function POST(req: Request) {
   }
 
   const result = await buildAnalysisFromRaw(raw);
+  result.model = usedModel;
   return NextResponse.json({ result });
 }

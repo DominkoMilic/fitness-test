@@ -66,6 +66,8 @@ export type AiAnalysisResult = {
   kcalMin: number | null;
   kcalMax: number | null;
   notes?: string;
+  // Which Gemini model actually produced this result (after any fallback).
+  model?: string;
 };
 
 export type MealFilter = MealKey | "sve";
