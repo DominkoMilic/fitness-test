@@ -147,20 +147,14 @@ export function AiFab() {
         background: "linear-gradient(160deg,#1b3255 0%,#0f1f38 100%)",
       }}
     >
-      <svg
-        width={24}
-        height={24}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/ai_assistant_image.png"
+        alt=""
         aria-hidden="true"
-      >
-        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" />
-        <circle cx={12} cy={13} r={3} />
-      </svg>
+        draggable={false}
+        className="w-full h-full rounded-full object-cover pointer-events-none"
+      />
       <span
         className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold"
         style={{ background: "var(--color-orange)", color: "#fff" }}
