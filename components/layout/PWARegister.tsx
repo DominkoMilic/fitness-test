@@ -21,24 +21,42 @@ export function PWARegister() {
     if (isLocalhost) return;
 
     let refreshed = false;
+    let disposed = false;
     let registration: ServiceWorkerRegistration | null = null;
+    let updateInterval: ReturnType<typeof setInterval> | null = null;
 
     const handleWaiting = (worker: ServiceWorker | null) => {
       if (worker) setWaitingWorker(worker);
     };
 
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((reg) => {
-        registration = reg;
-        reg.update();
+    const checkForUpdate = () => {
+      registration?.update().catch(() => {
+        /* offline / transient — next check will retry */
+      });
+    };
 
-        const updateInterval = setInterval(
-          () => {
-            reg.update();
-          },
-          60 * 60 * 1000,
-        );
+    const onControllerChange = () => {
+      if (refreshed) return;
+      refreshed = true;
+      window.location.reload();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") checkForUpdate();
+    };
+
+    navigator.serviceWorker
+      // updateViaCache:"none" makes the browser always fetch sw.js from the
+      // network. By default it may serve the worker script from the HTTP
+      // cache, so a new deploy can go unnoticed and the PWA keeps running the
+      // old cached build.
+      .register("/sw.js", { updateViaCache: "none" })
+      .then((reg) => {
+        if (disposed) return;
+        registration = reg;
+        checkForUpdate();
+
+        updateInterval = setInterval(checkForUpdate, 60 * 60 * 1000);
 
         // Already a waiting worker on mount.
         if (reg.waiting) handleWaiting(reg.waiting);
@@ -54,22 +72,30 @@ export function PWARegister() {
             }
           });
         });
-
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (refreshed) return;
-          refreshed = true;
-          window.location.reload();
-        });
-
-        return () => clearInterval(updateInterval);
       })
       .catch(() => {
         /* App still works online without SW. */
       });
 
-    // No cleanup for the SW registration itself.
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      onControllerChange,
+    );
+    // An installed PWA is usually resumed, not reloaded, so a check that only
+    // runs on page load can go days without firing. Re-check when the app comes
+    // to the foreground or regains connectivity.
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("online", checkForUpdate);
+
     return () => {
-      registration = null;
+      disposed = true;
+      if (updateInterval) clearInterval(updateInterval);
+      navigator.serviceWorker.removeEventListener(
+        "controllerchange",
+        onControllerChange,
+      );
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("online", checkForUpdate);
     };
   }, []);
 

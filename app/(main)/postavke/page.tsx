@@ -55,6 +55,33 @@ export default function SettingsPage() {
     setInstallPrompt(null);
   };
 
+  // Escape hatch for a PWA stuck on a stale cached build: drop every service
+  // worker + cache (and the foods cache) and reload from the network.
+  const onHardRefresh = async () => {
+    setLoading(true);
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      try {
+        window.localStorage.removeItem("kf_foods_cache_v2");
+        window.localStorage.removeItem("kf_foods_cache_v2_ts");
+      } catch {
+        /* ignore */
+      }
+      showToast("Predmemorija očišćena, ponovno učitavanje...");
+      window.location.reload();
+    } catch {
+      showToast("Osvježavanje nije uspjelo");
+      setLoading(false);
+    }
+  };
+
   const onExport = async () => {
     setLoading(true);
     try {
@@ -124,6 +151,22 @@ export default function SettingsPage() {
       >
         {user ? `Račun: ${user.name} (${user.code})` : null}
       </div>
+
+      <Section title="Osvježi aplikaciju">
+        <p
+          className="text-[13px] mb-3 leading-snug"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Ako app prikazuje stare podatke ili staru verziju, ovime se čisti
+          spremljena predmemorija i sve se učitava ispočetka.
+        </p>
+        <button
+          onClick={onHardRefresh}
+          className="w-full py-3 rounded-xl bg-linear-to-br from-navy to-[#162844] text-white text-[14px] font-bold"
+        >
+          Osvježi
+        </button>
+      </Section>
 
       <Section title="Instalacija">
         {installed ? (

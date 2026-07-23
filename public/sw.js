@@ -1,4 +1,4 @@
-const SW_VERSION = "v4";
+const SW_VERSION = "v5";
 const APP_SHELL_CACHE = `kf-app-shell-${SW_VERSION}`;
 const PAGES_CACHE = `kf-pages-${SW_VERSION}`;
 const STATIC_CACHE = `kf-static-${SW_VERSION}`;
@@ -44,10 +44,20 @@ async function trimCache(cacheName, maxEntries) {
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(APP_SHELL_CACHE)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const cache = await caches.open(APP_SHELL_CACHE);
+      // Precache each URL independently. `cache.addAll()` is all-or-nothing:
+      // a single failing entry (offline mid-install, a 500, a renamed asset)
+      // rejects the whole install, which leaves the OLD worker in control —
+      // that's how an installed PWA gets stuck on a stale build forever.
+      // `cache: "reload"` bypasses the HTTP cache so we precache fresh copies.
+      await Promise.all(
+        PRECACHE_URLS.map((url) =>
+          cache.add(new Request(url, { cache: "reload" })).catch(() => {}),
+        ),
+      );
+      await self.skipWaiting();
+    })(),
   );
 });
 
@@ -93,7 +103,8 @@ async function networkFirstForPages(request) {
   }
 }
 
-async function staleWhileRevalidate(request, cacheName, maxEntries) {
+async function staleWhileRevalidate(event, cacheName, maxEntries) {
+  const request = event.request;
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
 
@@ -106,6 +117,11 @@ async function staleWhileRevalidate(request, cacheName, maxEntries) {
       return response;
     })
     .catch(() => null);
+
+  // Hold the worker alive until revalidation finishes. Without this the SW can
+  // be terminated right after the cached response is returned, so the refresh
+  // never lands and the stale copy is served indefinitely.
+  event.waitUntil(fetchPromise);
 
   if (cached) return cached;
   const fresh = await fetchPromise;
@@ -134,6 +150,9 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
+  // Only ever handle our own origin. Third-party requests (analytics, fonts,
+  // CDNs) go straight to the network and never pollute our caches.
+  if (url.origin !== self.location.origin) return;
   if (shouldBypassCaching(url)) return;
 
   if (request.mode === "navigate") {
@@ -146,7 +165,9 @@ self.addEventListener("fetch", (event) => {
     request.destination === "script" ||
     request.destination === "style"
   ) {
-    event.respondWith(staleWhileRevalidate(request, STATIC_CACHE, 80));
+    // Next.js emits content-hashed filenames, so a large cap is safe and
+    // avoids evicting chunks the current build still needs.
+    event.respondWith(staleWhileRevalidate(event, STATIC_CACHE, 200));
     return;
   }
 
@@ -155,5 +176,5 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(staleWhileRevalidate(request, STATIC_CACHE, 80));
+  event.respondWith(staleWhileRevalidate(event, STATIC_CACHE, 200));
 });
