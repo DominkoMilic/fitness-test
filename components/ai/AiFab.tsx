@@ -89,9 +89,11 @@ export function AiFab() {
     pointerId: number;
   } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Set after a completed drag (or a bare hold) so the browser's synthesized
-  // click that follows pointerup doesn't ALSO open the modal.
-  const suppressClick = useRef(false);
+  // Timestamp of the last drag/hold end. The click that MAY follow pointerup
+  // is ignored inside a short window. A timestamp (not a one-shot boolean) is
+  // self-healing: after a big drag mobile browsers often never synthesize the
+  // click, and a lingering boolean would swallow the NEXT real tap instead.
+  const lastDragEnd = useRef(0);
 
   const clearTimer = useCallback(() => {
     if (timer.current) {
@@ -105,6 +107,20 @@ export function AiFab() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // Hard-block page scroll for touches that start on the FAB. `touch-action:
+  // none` alone is flaky on some mobile browsers (a scroll can still start,
+  // which also fires pointercancel and kills the long-press). React's
+  // synthetic touch handlers are passive, so this needs a manual non-passive
+  // listener. Re-attach whenever the button (re)mounts (modal open/close).
+  const rendered = modal === null && pos !== null;
+  useEffect(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const block = (e: TouchEvent) => e.preventDefault();
+    el.addEventListener("touchmove", block, { passive: false });
+    return () => el.removeEventListener("touchmove", block);
+  }, [rendered]);
 
   // Clean up a pending timer if unmounted mid-press.
   useEffect(() => () => clearTimer(), [clearTimer]);
@@ -168,8 +184,9 @@ export function AiFab() {
         } catch {}
       }
       if (p?.armed) {
-        // Drag (or bare hold) finished — persist and swallow the trailing click.
-        suppressClick.current = true;
+        // Drag (or bare hold) finished — persist and open a short window in
+        // which any trailing synthesized click is ignored.
+        lastDragEnd.current = Date.now();
         setDragging(false);
         setPos((cur) => {
           savePos(cur);
@@ -181,10 +198,9 @@ export function AiFab() {
   );
 
   const onClick = useCallback(() => {
-    if (suppressClick.current) {
-      suppressClick.current = false;
-      return;
-    }
+    // Ignore the click that trails a drag/hold; taps outside this window
+    // always open (no stale one-shot state to eat them).
+    if (Date.now() - lastDragEnd.current < 600) return;
     openModal("aiMeal");
   }, [openModal]);
 
