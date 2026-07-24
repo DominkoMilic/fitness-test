@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useUIStore } from "@/store/useUIStore";
 
 // Floating AI button. A single tap opens the modal instantly; to reposition it
@@ -59,6 +60,10 @@ function savePos(p: Pos | null) {
 export function AiFab() {
   const openModal = useUIStore((s) => s.openModal);
   const modal = useUIStore((s) => s.modal);
+  // Only on the diary (dashboard) page — not on search/add-meal, favorites,
+  // recipes, settings etc.
+  const pathname = usePathname();
+  const onDashboard = pathname?.startsWith("/dashboard") ?? false;
 
   // RAW position (persisted). Never clamped by resize events — see header note.
   const [pos, setPos] = useState<Pos | null>(() => {
@@ -113,7 +118,7 @@ export function AiFab() {
   // which also fires pointercancel and kills the long-press). React's
   // synthetic touch handlers are passive, so this needs a manual non-passive
   // listener. Re-attach whenever the button (re)mounts (modal open/close).
-  const rendered = modal === null && pos !== null;
+  const rendered = onDashboard && modal === null && pos !== null;
   useEffect(() => {
     const el = btnRef.current;
     if (!el) return;
@@ -204,8 +209,10 @@ export function AiFab() {
     openModal("aiMeal");
   }, [openModal]);
 
-  // Hide while a modal is open so it doesn't float over sheets/backdrops.
-  if (modal !== null || !pos) return null;
+  // Render only on the dashboard, and hide while a modal is open so it
+  // doesn't float over sheets/backdrops. (`!pos` is implied by `rendered`
+  // but repeated so TypeScript narrows it for clampPos below.)
+  if (!rendered || !pos) return null;
 
   const shown = clampPos(pos);
 
