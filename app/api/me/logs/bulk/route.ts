@@ -37,6 +37,9 @@ export async function POST(req: Request) {
       group_name: e.group_name == null ? null : String(e.group_name).trim(),
       group_portions:
         e.group_portions == null ? null : Number(e.group_portions),
+      source: e.source === "ai" ? "ai" : "manual",
+      ai_analysis_id:
+        e.ai_analysis_id == null ? null : String(e.ai_analysis_id),
     };
     if (!ISO_DATE.test(entry.date) || !entry.meal || !entry.food_name) {
       return NextResponse.json(

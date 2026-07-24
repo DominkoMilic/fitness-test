@@ -53,6 +53,9 @@ export async function POST(req: Request) {
     u: Number(body.u ?? 0),
     m: Number(body.m ?? 0),
     pieces: body.pieces == null ? null : Number(body.pieces),
+    source: body.source === "ai" ? "ai" : "manual",
+    ai_analysis_id:
+      body.ai_analysis_id == null ? null : String(body.ai_analysis_id),
   };
 
   if (!ISO_DATE.test(entry.date) || !entry.meal || !entry.food_name) {
