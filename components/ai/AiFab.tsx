@@ -3,14 +3,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useUIStore } from "@/store/useUIStore";
 
 // Floating AI button. A single tap opens the modal instantly; to reposition it
-// the user press-and-HOLDS (~450 ms) to enter drag mode, then drags. The hold
-// gate means normal taps are never swallowed by drag detection.
+// the user press-and-HOLDS (~450 ms) to enter drag mode, then drags.
+//
+// Two mobile-specific traps this implementation avoids:
+//   • Opening is driven by the native `click` event (browsers apply their own
+//     jitter-tolerant tap heuristics), NOT by hand-rolled pointerup logic —
+//     home-made movement thresholds dropped a large share of real taps.
+//   • The stored position is RAW; clamping to the viewport happens at render
+//     time only. The on-screen keyboard shrinking window.innerHeight must
+//     never permanently rewrite the saved position (that's what shoved the
+//     button up to the modal-top after closing it).
 
 const BTN = 56; // w-14/h-14
 const MARGIN = 12;
 const NAV_RESERVE = 84; // keep the button above the bottom nav
 const LONG_PRESS_MS = 450; // hold this long to enter drag mode
-const MOVE_CANCEL = 10; // px moved before the hold fires → it's a scroll, not a drag
+const SWIPE_CANCEL = 14; // px (euclidean) moved before the hold fires → treat as swipe
 const POS_KEY = "kf_ai_fab_pos";
 
 type Pos = { x: number; y: number };
@@ -52,9 +60,7 @@ export function AiFab() {
   const openModal = useUIStore((s) => s.openModal);
   const modal = useUIStore((s) => s.modal);
 
-  // Initial position from storage or default. Computed lazily on the client;
-  // the parent (MainLayout) only renders after hydration, so `window` is
-  // available here and there's no SSR markup to mismatch.
+  // RAW position (persisted). Never clamped by resize events — see header note.
   const [pos, setPos] = useState<Pos | null>(() => {
     if (typeof window === "undefined") return null;
     let start: Pos | null = null;
@@ -65,23 +71,27 @@ export function AiFab() {
         if (typeof p?.x === "number" && typeof p?.y === "number") start = p;
       }
     } catch {}
-    return clampPos(start ?? defaultPos());
+    return start ?? defaultPos();
   });
   const [dragging, setDragging] = useState(false);
+  // Resize/orientation only needs a re-render (render-time clamp picks up the
+  // new bounds); it must NOT rewrite `pos`.
+  const [, bumpViewport] = useState(0);
   const btnRef = useRef<HTMLButtonElement | null>(null);
 
-  // Live press bookkeeping. `armed` flips true only after the long-press timer
-  // fires; `canceled` blocks the tap when the finger moved (scroll/swipe).
+  // Press bookkeeping. `armed` = long-press elapsed, drag mode active.
   const press = useRef<{
     offX: number;
     offY: number;
     startX: number;
     startY: number;
     armed: boolean;
-    canceled: boolean;
     pointerId: number;
   } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set after a completed drag (or a bare hold) so the browser's synthesized
+  // click that follows pointerup doesn't ALSO open the modal.
+  const suppressClick = useRef(false);
 
   const clearTimer = useCallback(() => {
     if (timer.current) {
@@ -90,9 +100,8 @@ export function AiFab() {
     }
   }, []);
 
-  // Re-clamp on viewport resize/orientation change.
   useEffect(() => {
-    const onResize = () => setPos((p) => (p ? clampPos(p) : p));
+    const onResize = () => bumpViewport((t) => t + 1);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -104,7 +113,7 @@ export function AiFab() {
   const arm = useCallback(() => {
     const p = press.current;
     const el = btnRef.current;
-    if (!p || !el || p.canceled) return;
+    if (!p || !el) return;
     p.armed = true;
     setDragging(true);
     try {
@@ -124,7 +133,6 @@ export function AiFab() {
         startX: e.clientX,
         startY: e.clientY,
         armed: false,
-        canceled: false,
         pointerId: e.pointerId,
       };
       clearTimer();
@@ -137,46 +145,18 @@ export function AiFab() {
     const p = press.current;
     if (!p) return;
     if (p.armed) {
+      // Clamp while dragging — the user is placing it inside the live viewport.
       setPos(clampPos({ x: e.clientX - p.offX, y: e.clientY - p.offY }));
       return;
     }
-    // Not armed yet: movement before the hold means the user is scrolling /
-    // swiping, not intending to drag → cancel both the pending drag and the tap.
-    const dist =
-      Math.abs(e.clientX - p.startX) + Math.abs(e.clientY - p.startY);
-    if (dist > MOVE_CANCEL) {
-      p.canceled = true;
-      clearTimer();
-    }
+    // Clear swipe across the button before the hold fires → not a drag intent;
+    // just stop the pending long-press. Whether it still counts as a tap is
+    // left entirely to the browser's own click heuristics.
+    const dist = Math.hypot(e.clientX - p.startX, e.clientY - p.startY);
+    if (dist > SWIPE_CANCEL) clearTimer();
   }, [clearTimer]);
 
-  const onPointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      const p = press.current;
-      press.current = null;
-      clearTimer();
-      const el = btnRef.current;
-      if (el?.hasPointerCapture?.(e.pointerId)) {
-        try {
-          el.releasePointerCapture(e.pointerId);
-        } catch {}
-      }
-      if (!p) return;
-      if (p.armed) {
-        setDragging(false);
-        setPos((cur) => {
-          savePos(cur);
-          return cur;
-        });
-      } else if (!p.canceled) {
-        // Quick tap (released before the hold) → open the modal.
-        openModal("aiMeal");
-      }
-    },
-    [openModal, clearTimer],
-  );
-
-  const onPointerCancel = useCallback(
+  const endPress = useCallback(
     (e: React.PointerEvent) => {
       const p = press.current;
       press.current = null;
@@ -188,6 +168,8 @@ export function AiFab() {
         } catch {}
       }
       if (p?.armed) {
+        // Drag (or bare hold) finished — persist and swallow the trailing click.
+        suppressClick.current = true;
         setDragging(false);
         setPos((cur) => {
           savePos(cur);
@@ -198,24 +180,38 @@ export function AiFab() {
     [clearTimer],
   );
 
+  const onClick = useCallback(() => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    openModal("aiMeal");
+  }, [openModal]);
+
   // Hide while a modal is open so it doesn't float over sheets/backdrops.
   if (modal !== null || !pos) return null;
+
+  const shown = clampPos(pos);
 
   return (
     <button
       ref={btnRef}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
+      onPointerUp={endPress}
+      onPointerCancel={endPress}
+      onClick={onClick}
+      // Long-press must arm drag mode, not open the mobile context menu.
+      onContextMenu={(e) => e.preventDefault()}
       aria-label="AI prepoznavanje obroka (dodirni za otvaranje, drži i povuci za pomicanje)"
       className={`fixed z-20 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg select-none ${
         dragging ? "scale-110 cursor-grabbing" : "cursor-pointer active:scale-95"
       } transition-transform`}
       style={{
-        left: pos.x,
-        top: pos.y,
+        left: shown.x,
+        top: shown.y,
         touchAction: "none",
+        WebkitUserSelect: "none",
         background: "linear-gradient(160deg,#1b3255 0%,#0f1f38 100%)",
       }}
     >
