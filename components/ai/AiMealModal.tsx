@@ -300,21 +300,7 @@ export function AiMealModal() {
           </div>
           <div className="rounded-xl border border-border overflow-hidden mb-4">
             {result.items.map((it, idx) => (
-              <div key={idx} className="px-3 py-2.5 border-b border-border last:border-b-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[13px] font-semibold truncate">{it.name}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <SourceBadge source={it.source} />
-                    <span className="text-[13px] font-bold whitespace-nowrap" style={{ color: "var(--color-navy)" }}>
-                      {Math.round(it.kcal)} kcal
-                    </span>
-                  </div>
-                </div>
-                <div className="text-[11px] mt-0.5" style={{ color: "var(--color-muted)" }}>
-                  {Math.round(it.grams)} g · P {Math.round(it.p)} / UH {Math.round(it.u)} / M{" "}
-                  {Math.round(it.m)}
-                </div>
-              </div>
+              <ItemRow key={idx} item={it} />
             ))}
           </div>
 
@@ -359,6 +345,96 @@ function StickyFooter({ children }: { children: React.ReactNode }) {
   return (
     <div className="sticky bottom-0 -mx-5 px-5 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] bg-white border-t border-border/70">
       <div className="flex gap-2.5">{children}</div>
+    </div>
+  );
+}
+
+// One recognized food. Tapping it expands the provenance: which database
+// entry was used (or that the value is a model estimate), the per-100g basis,
+// and the arithmetic that produced the total — so the numbers are never an
+// unexplained black box.
+function ItemRow({ item }: { item: AiAnalysisItem }) {
+  const [open, setOpen] = useState(false);
+  const isDb = item.source === "db";
+  const per100 = item.per100;
+
+  return (
+    <div className="border-b border-border last:border-b-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full text-left px-3 py-2.5"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[13px] font-semibold truncate">{item.name}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <SourceBadge source={item.source} />
+            <span
+              className="text-[13px] font-bold whitespace-nowrap"
+              style={{ color: "var(--color-navy)" }}
+            >
+              {Math.round(item.kcal)} kcal
+            </span>
+            <svg
+              width={12}
+              height={12}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+              style={{ color: "var(--color-muted)" }}
+              aria-hidden="true"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+        </div>
+        <div className="text-[11px] mt-0.5" style={{ color: "var(--color-muted)" }}>
+          {Math.round(item.grams)} g · P {Math.round(item.p)} / UH{" "}
+          {Math.round(item.u)} / M {Math.round(item.m)}
+        </div>
+      </button>
+
+      {open && (
+        <div
+          className="px-3 pb-3 pt-1 text-[11px] leading-relaxed"
+          style={{ background: "var(--color-bg)", color: "var(--color-muted)" }}
+        >
+          {isDb ? (
+            <p className="mb-1.5">
+              Vrijednosti su uzete iz baze, iz unosa{" "}
+              <b style={{ color: "var(--color-navy)" }}>
+                {item.matchedFoodName ?? "—"}
+              </b>
+              .
+            </p>
+          ) : (
+            <p className="mb-1.5">
+              Ova namirnica nije pronađena u bazi, pa je vrijednost{" "}
+              <b style={{ color: "var(--color-orange)" }}>AI procjena</b> na
+              temelju fotografije/opisa. Zato je manje pouzdana — provjerite je
+              i po potrebi uredite.
+            </p>
+          )}
+          {per100 && (
+            <>
+              <div>
+                Na 100 g: <b>{Math.round(per100.kcal)} kcal</b> · P{" "}
+                {Math.round(per100.p)} / UH {Math.round(per100.u)} / M{" "}
+                {Math.round(per100.m)}
+              </div>
+              <div>
+                Izračun: {Math.round(per100.kcal)} kcal × {Math.round(item.grams)}{" "}
+                g / 100 = <b>{Math.round(item.kcal)} kcal</b>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
