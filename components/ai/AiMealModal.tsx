@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -399,11 +400,22 @@ function ItemRow({ item }: { item: AiAnalysisItem }) {
         </div>
       </button>
 
-      {open && (
-        <div
-          className="px-3 pb-3 pt-1 text-[11px] leading-relaxed"
-          style={{ background: "var(--color-bg)", color: "var(--color-muted)" }}
-        >
+      {/* Animated reveal, matching the inline editor in RecipeLogModal. */}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="details"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+            style={{ background: "var(--color-bg)" }}
+          >
+            <div
+              className="px-3 pb-3 pt-1 text-[11px] leading-relaxed"
+              style={{ color: "var(--color-muted)" }}
+            >
           {isDb ? (
             <p className="mb-1.5">
               Vrijednosti su uzete iz baze, iz unosa{" "}
@@ -433,8 +445,10 @@ function ItemRow({ item }: { item: AiAnalysisItem }) {
               </div>
             </>
           )}
-        </div>
-      )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
