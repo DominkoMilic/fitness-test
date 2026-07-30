@@ -13,12 +13,16 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 
 type FoodMatchRow = {
   id: number;
+  name: string;
   normalized_name: string;
   kcal_per_100g: number;
   protein: number;
   carbs: number;
   fat: number;
 };
+
+const FOOD_COLUMNS =
+  "id, name, normalized_name, kcal_per_100g, protein, carbs, fat";
 
 function scaleFromPer100g(
   grams: number,
@@ -76,10 +80,37 @@ function similarity(a: string[], b: string[]): number {
   return (2 * inter) / (a.length + b.length);
 }
 
-// Minimum similarity to accept a DB row as "the same food". Below this we
-// keep the model's own estimate rather than silently applying the nutrition
-// of a different product.
-const MIN_SIMILARITY = 0.6;
+// Acceptance thresholds. Dice alone is not enough: "umak od rajčice" vs
+// "rajčica" scores 0.67 (only one word each side), yet raw tomato is NOT
+// tomato sauce — the dropped word "umak" changes the dish. So a row is
+// accepted only when either
+//   (a) the candidate explains virtually the whole query AND isn't mostly
+//       unrelated extra words ("rajčica" ↔ "Rajčica"), or
+//   (b) the two names overlap very strongly overall, which tolerates a
+//       missing detail word ("kuhana tjestenina (špageti)" ↔ "Tjestenina
+//       kuhana").
+const MIN_QUERY_COVERAGE = 0.8; // share of query words found in candidate
+const MIN_CANDIDATE_COVERAGE = 0.5; // share of candidate words found in query
+const STRONG_SIMILARITY = 0.75; // Dice good enough on its own
+
+function accepts(query: string[], cand: string[]): number {
+  if (query.length === 0 || cand.length === 0) return 0;
+  const candSet = new Set(cand);
+  let inter = 0;
+  for (const t of query) if (candSet.has(t)) inter++;
+  if (inter === 0) return 0;
+
+  const queryCoverage = inter / query.length;
+  const candCoverage = inter / cand.length;
+  const dice = similarity(query, cand);
+
+  const ok =
+    (queryCoverage >= MIN_QUERY_COVERAGE &&
+      candCoverage >= MIN_CANDIDATE_COVERAGE) ||
+    dice >= STRONG_SIMILARITY;
+
+  return ok ? dice : 0;
+}
 
 // Pick the best DB row for a query among candidates, requiring a genuine
 // match. Ties broken by the shorter (more specific) name.
@@ -90,8 +121,8 @@ function bestMatch(
   let best: FoodMatchRow | null = null;
   let bestScore = 0;
   for (const c of candidates) {
-    const score = similarity(queryStems, contentStems(c.normalized_name));
-    if (score < MIN_SIMILARITY) continue;
+    const score = accepts(queryStems, contentStems(c.normalized_name));
+    if (score <= 0) continue;
     if (
       score > bestScore ||
       (score === bestScore &&
@@ -118,7 +149,7 @@ async function matchOne(
     // 1) exact normalized-name match (fast, indexed)
     const { data: exact } = await supa
       .from("foods")
-      .select("id, normalized_name, kcal_per_100g, protein, carbs, fat")
+      .select(FOOD_COLUMNS)
       .eq("status", "imported")
       .eq("normalized_name", norm)
       .limit(1);
@@ -137,7 +168,7 @@ async function matchOne(
           searchable.map((s) =>
             supa
               .from("foods")
-              .select("id, normalized_name, kcal_per_100g, protein, carbs, fat")
+              .select(FOOD_COLUMNS)
               .eq("status", "imported")
               .ilike("normalized_name", `%${s}%`)
               .limit(25),
@@ -155,34 +186,38 @@ async function matchOne(
   }
 
   if (match) {
-    const scaled = scaleFromPer100g(grams, {
+    const per100 = {
       kcal: Number(match.kcal_per_100g) || 0,
       p: Number(match.protein) || 0,
       u: Number(match.carbs) || 0,
       m: Number(match.fat) || 0,
-    });
+    };
     return {
       name: raw.name,
       grams,
-      ...scaled,
+      ...scaleFromPer100g(grams, per100),
       source: "db",
       matchedFoodId: match.id,
+      matchedFoodName: match.name,
+      per100,
     };
   }
 
   // No DB match → keep the model's own per-100g estimate.
-  const scaled = scaleFromPer100g(grams, {
-    kcal: raw.kcalPer100g,
-    p: raw.proteinPer100g,
-    u: raw.carbsPer100g,
-    m: raw.fatPer100g,
-  });
+  const per100 = {
+    kcal: round1(raw.kcalPer100g),
+    p: round1(raw.proteinPer100g),
+    u: round1(raw.carbsPer100g),
+    m: round1(raw.fatPer100g),
+  };
   return {
     name: raw.name,
     grams,
-    ...scaled,
+    ...scaleFromPer100g(grams, per100),
     source: "ai",
     matchedFoodId: null,
+    matchedFoodName: null,
+    per100,
   };
 }
 

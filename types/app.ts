@@ -48,6 +48,11 @@ export type AiAnalysisItem = {
   source: AiItemSource;
   // foods.id when source === "db", else null.
   matchedFoodId: number | null;
+  // Provenance, shown when the user expands the row so the numbers are never
+  // a black box: which DB row was used (source "db") and the per-100g basis
+  // the totals were scaled from (either the DB row's or the model's).
+  matchedFoodName?: string | null;
+  per100?: { kcal: number; p: number; u: number; m: number };
 };
 
 // Full result returned by /api/me/ai/analyze (ephemeral — not yet saved).
