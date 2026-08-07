@@ -296,7 +296,7 @@ function FoodEditor({
       <div className="flex gap-2.5">
         <button
           onClick={onClose}
-          className="flex-1 py-2.5 rounded-xl kf-btn-secondary text-[14px] font-semibold"
+          className="flex-1 py-2.5 rounded-xl border-[1.5px] border-[#b9c8e0] bg-[#e8edf6] text-navy hover:bg-[#d8e1f1] hover:border-[#8ea6cd] active:bg-[#c9d5ec] text-[14px] font-semibold"
         >
           Odustani
         </button>

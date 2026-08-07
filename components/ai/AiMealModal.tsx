@@ -113,7 +113,7 @@ export function AiMealModal() {
         <div className="grid grid-cols-2 gap-2.5 mb-3">
           <button
             onClick={() => cameraRef.current?.click()}
-            className="py-4 rounded-xl kf-tile text-[13px] font-bold flex flex-col items-center gap-1.5"
+            className="py-4 rounded-xl border-[1.5px] border-[#c3d1e8] bg-[#eef3fc] text-navy hover:bg-[#e0e9f8] hover:border-[#90a9d6] active:bg-[#d6e0f2] text-[13px] font-bold flex flex-col items-center gap-1.5"
             style={{ color: "var(--color-navy)" }}
           >
             <span className="text-xl">📷</span>
@@ -121,7 +121,7 @@ export function AiMealModal() {
           </button>
           <button
             onClick={() => uploadRef.current?.click()}
-            className="py-4 rounded-xl kf-tile text-[13px] font-bold flex flex-col items-center gap-1.5"
+            className="py-4 rounded-xl border-[1.5px] border-[#c3d1e8] bg-[#eef3fc] text-navy hover:bg-[#e0e9f8] hover:border-[#90a9d6] active:bg-[#d6e0f2] text-[13px] font-bold flex flex-col items-center gap-1.5"
             style={{ color: "var(--color-navy)" }}
           >
             <span className="text-xl">🖼️</span>
@@ -149,7 +149,7 @@ export function AiMealModal() {
         <div className="flex gap-2.5">
           <button
             onClick={closeModal}
-            className="flex-1 py-3.5 rounded-xl kf-btn-secondary text-[15px] font-semibold"
+            className="flex-1 py-3.5 rounded-xl border-[1.5px] border-[#b9c8e0] bg-[#e8edf6] text-navy hover:bg-[#d8e1f1] hover:border-[#8ea6cd] active:bg-[#c9d5ec] text-[15px] font-semibold"
           >
             Odustani
           </button>

@@ -12,7 +12,7 @@ type Variant = "primary" | "navy" | "cancel" | "orange";
 const styles: Record<Variant, string> = {
   primary: "bg-linear-to-br from-[#c85a10] to-[#a84a0d] text-white",
   navy: "bg-linear-to-br from-[#1b3255] to-[#162844] text-white",
-  cancel: "kf-btn-secondary",
+  cancel: "border-[1.5px] border-[#b9c8e0] bg-[#e8edf6] text-navy hover:bg-[#d8e1f1] hover:border-[#8ea6cd] active:bg-[#c9d5ec]",
   orange: "bg-linear-to-br from-[#c85a10] to-[#a84a0d] text-white",
 };
 
