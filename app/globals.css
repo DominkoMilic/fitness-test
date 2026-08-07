@@ -74,17 +74,26 @@ a:active { opacity: 0.6; }
  * is invisible on light surfaces. This gives a distinct soft shade with a
  * real hover/active background change (and overrides the brightness filter). */
 .kf-btn-secondary {
-  background-color: #e9ecf1;
-  border: 1.5px solid rgba(27, 50, 85, 0.14);
+  background-color: #e8edf6;
+  /* Solid, clearly visible outline. The previous translucent border
+   * (rgba(27,50,85,0.14)) all but vanished on white modal/popup surfaces, so
+   * cancel buttons read as invisible — hardest on older eyes. */
+  border: 1.5px solid #b9c8e0;
+  /* Navy instead of grey: ~9:1 contrast on the tint, vs ~4:1 for muted grey.
+   * Declared unlayered so it also wins over Tailwind's text-* utility on the
+   * shared Button "cancel" variant. */
+  color: var(--color-navy);
 }
 @media (hover: hover) {
   .kf-btn-secondary:not(:disabled):hover {
-    background-color: #dde1ea;
+    background-color: #d8e1f1;
+    border-color: #8ea6cd;
     filter: none;
   }
 }
 .kf-btn-secondary:not(:disabled):active {
-  background-color: #d0d6e1;
+  background-color: #c9d5ec;
+  border-color: #8ea6cd;
   filter: none;
 }
 

@@ -297,7 +297,6 @@ function FoodEditor({
         <button
           onClick={onClose}
           className="flex-1 py-2.5 rounded-xl kf-btn-secondary text-[14px] font-semibold"
-          style={{ color: "var(--color-muted)" }}
         >
           Odustani
         </button>

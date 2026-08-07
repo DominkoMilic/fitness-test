@@ -177,7 +177,6 @@ export function SyncPreviewModal({ onDone }: { onDone?: () => void }) {
         <button
           onClick={closeModal}
           className="flex-1 py-3.5 rounded-xl kf-btn-secondary text-[15px] font-semibold"
-          style={{ color: "var(--color-muted)" }}
         >
           Odustani
         </button>
