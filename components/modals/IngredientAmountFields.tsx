@@ -87,7 +87,7 @@ export function unitDropdownOptions(
 }
 
 /** Convert grams back into a quantity expressed in `unit`. */
-function gramsToUnitQty(
+export function gramsToUnitQty(
   grams: number,
   unit: AmountUnit,
   pieceG: number | null,

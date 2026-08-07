@@ -16,7 +16,22 @@ import {
   saveAnalysis,
   type AnalyzeResponse,
 } from "@/lib/api/aiMeals";
-import type { AiAnalysisItem, AiAnalysisResult } from "@/types/app";
+import { BarcodeScanner } from "@/components/search/BarcodeScanner";
+import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
+import { useFoods } from "@/hooks/useFoods";
+import { useFoodSearch } from "@/hooks/useFoodSearch";
+import {
+  gramsToUnitQty,
+  IngredientAddPanel,
+  itemDisplayQty,
+  reconcileItemQty,
+  unitDropdownOptions,
+  unitsForFood,
+  unitShortLabel,
+  type RecipeEditItem,
+} from "@/components/modals/IngredientAmountFields";
+import { getPieceInfo, type AmountUnit } from "@/lib/utils/macros";
+import type { AiAnalysisItem, AiAnalysisResult, FoodEntry } from "@/types/app";
 import type { MealKey } from "@/types/database";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -40,15 +55,56 @@ function friendlyError(e: unknown): string {
 
 type Step = "input" | "loading" | "result" | "offtopic" | "error";
 
-// Editable item carries a per-100g basis so grams edits recompute macros the
-// same way the rest of the app does (macroForGrams).
-type EditItem = {
-  name: string;
-  gramsStr: string;
+// Editable AI item = the shared recipe/favourite ingredient shape, so unit
+// switching, quantity reconciliation and the add-ingredient panel behave
+// exactly as they do in the recipe/favourite modals, plus the AI provenance.
+type AiEditItem = RecipeEditItem & {
   source: AiAnalysisItem["source"];
   matchedFoodId: number | null;
-  per100: { kcal: number; p: number; u: number; m: number };
 };
+
+// Resolve the database row behind an AI item. Match on the stored id first —
+// the model writes its own names ("Umak od rajčice"), which need not equal the
+// DB name — then fall back to an exact name match.
+function findFood(
+  id: number | null | undefined,
+  name: string,
+  foods: FoodEntry[],
+): FoodEntry | null {
+  if (id != null) {
+    const byId = foods.find((f) => Number(f.id) === Number(id));
+    if (byId) return byId;
+  }
+  return foods.find((f) => f.name === name) ?? null;
+}
+
+// Units an item may be measured in. A DB-backed item offers whatever the food
+// supports (kom / šalica / žlice); a pure AI estimate has no such metadata, so
+// grams only.
+function unitsForAiItem(it: AiEditItem, foods: FoodEntry[]): AmountUnit[] {
+  const food = findFood(it.matchedFoodId, it.name, foods);
+  if (food) return unitsForFood(food);
+  const units: AmountUnit[] = ["g"];
+  if (it.pieceG) units.push("kom");
+  return units;
+}
+
+// Switch unit while keeping grams (and macros) constant — only the displayed
+// quantity changes. Mirrors changeItemUnit, but resolves the food by id.
+function changeAiItemUnit(
+  it: AiEditItem,
+  unit: AmountUnit,
+  foods: FoodEntry[],
+): AiEditItem {
+  const food = findFood(it.matchedFoodId, it.name, foods);
+  if (!food) {
+    const qty = gramsToUnitQty(it.grams, unit, it.pieceG);
+    return { ...it, unit, qty, pieces: unit === "kom" ? qty : null };
+  }
+  const pieceG = getPieceInfo(food)?.g ?? food.piece_g ?? it.pieceG;
+  const qty = gramsToUnitQty(it.grams, unit, pieceG);
+  return { ...it, unit, qty, pieces: unit === "kom" ? qty : null, pieceG };
+}
 
 function mealByHour(): MealKey {
   const h = new Date().getHours();
@@ -58,38 +114,35 @@ function mealByHour(): MealKey {
   return "uzina";
 }
 
-function toEditItems(items: AiAnalysisItem[]): EditItem[] {
+function toEditItems(
+  items: AiAnalysisItem[],
+  foods: FoodEntry[],
+): AiEditItem[] {
   return items.map((i) => {
-    const g = i.grams > 0 ? i.grams : 0;
-    const per100 =
-      g > 0
-        ? {
-            kcal: (i.kcal / g) * 100,
-            p: (i.p / g) * 100,
-            u: (i.u / g) * 100,
-            m: (i.m / g) * 100,
-          }
-        : { kcal: i.kcal, p: i.p, u: i.u, m: i.m };
+    const grams = i.grams > 0 ? i.grams : 0;
+    // Per-gram rates keep macros correct through any later unit/qty change.
+    const per = grams > 0 ? 1 / grams : 0;
+    const food = findFood(i.matchedFoodId, i.name, foods);
+    const pieceG = getPieceInfo(food)?.g ?? food?.piece_g ?? null;
     return {
       name: i.name,
-      gramsStr: String(i.grams),
+      grams,
+      kcal: i.kcal,
+      p: i.p,
+      u: i.u,
+      m: i.m,
+      pieces: null,
+      unit: "g" as AmountUnit,
+      qty: grams,
+      rKcal: i.kcal * per,
+      rP: i.p * per,
+      rU: i.u * per,
+      rM: i.m * per,
+      pieceG,
       source: i.source,
       matchedFoodId: i.matchedFoodId,
-      per100,
     };
   });
-}
-
-function macrosForEdit(it: EditItem) {
-  const g = Math.max(0, parseFloat(it.gramsStr) || 0);
-  const r = g / 100;
-  return {
-    grams: round1(g),
-    kcal: round1(it.per100.kcal * r),
-    p: round1(it.per100.p * r),
-    u: round1(it.per100.u * r),
-    m: round1(it.per100.m * r),
-  };
 }
 
 export function AiMealModal() {
@@ -109,9 +162,23 @@ export function AiMealModal() {
   const [title, setTitle] = useState("");
   const [meal, setMeal] = useState<MealKey>("dorucak");
   const [editing, setEditing] = useState(false);
-  const [editItems, setEditItems] = useState<EditItem[]>([]);
+  const [editItems, setEditItems] = useState<AiEditItem[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Add-ingredient / barcode / remove-confirm state for the edit view.
+  const [showAdd, setShowAdd] = useState(false);
+  const [addSearch, setAddSearch] = useState("");
+  const [addFood, setAddFood] = useState<FoodEntry | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<number | null>(null);
+
+  const { foods } = useFoods();
+  const { results: searchResults } = useFoodSearch(
+    foods,
+    addFood ? "" : addSearch,
+    { limit: 8, minLength: 2 },
+  );
 
   const cameraRef = useRef<HTMLInputElement | null>(null);
   const uploadRef = useRef<HTMLInputElement | null>(null);
@@ -133,6 +200,11 @@ export function AiMealModal() {
     setEditItems([]);
     setMessage("");
     setSaving(false);
+    setShowAdd(false);
+    setAddSearch("");
+    setAddFood(null);
+    setScanOpen(false);
+    setPendingRemove(null);
   } else if (!open && wasOpen) {
     setWasOpen(false);
   }
@@ -182,38 +254,80 @@ export function AiMealModal() {
 
   const startEditing = () => {
     if (!result) return;
-    setEditItems(toEditItems(result.items));
+    setEditItems(toEditItems(result.items, foods));
     setEditing(true);
   };
 
-  const removeEditItem = (idx: number) => {
-    setEditItems((prev) => prev.filter((_, i) => i !== idx));
+  const confirmRemove = () => {
+    if (pendingRemove == null) return;
+    setEditItems((prev) => prev.filter((_, i) => i !== pendingRemove));
+    setPendingRemove(null);
   };
 
-  const setEditGrams = (idx: number, v: string) => {
+  const updateQty = (idx: number, val: number) => {
     setEditItems((prev) =>
-      prev.map((it, i) => (i === idx ? { ...it, gramsStr: v } : it)),
+      prev.map((it, i) =>
+        i === idx ? ({ ...it, ...reconcileItemQty(it, val) } as AiEditItem) : it,
+      ),
     );
   };
+
+  const changeUnit = (idx: number, unit: AmountUnit) => {
+    setEditItems((prev) =>
+      prev.map((it, i) => (i === idx ? changeAiItemUnit(it, unit, foods) : it)),
+    );
+  };
+
+  const resetAdd = () => {
+    setShowAdd(false);
+    setAddSearch("");
+    setAddFood(null);
+  };
+
+  const selectFood = (food: FoodEntry) => {
+    setAddFood(food);
+    setAddSearch(food.name);
+  };
+
+  // A manually added ingredient comes straight from the database, so it is
+  // marked "db". Only keep the id when the food really is a DB row — a scanned
+  // barcode may resolve via OpenFoodFacts and carry a synthetic id.
+  const onItemAdded = (item: RecipeEditItem) => {
+    const id = addFood ? Number(addFood.id) : NaN;
+    const isDbRow =
+      Number.isFinite(id) && foods.some((f) => Number(f.id) === id);
+    setEditItems((prev) => [
+      ...prev,
+      { ...item, source: "db", matchedFoodId: isDbRow ? id : null },
+    ]);
+    resetAdd();
+  };
+
+  // Scanned food flows into the same add path as a searched one.
+  const onScanned = (food: FoodEntry) => {
+    selectFood(food);
+    setShowAdd(true);
+    setScanOpen(false);
+  };
+
+  // Emptying a quantity field must not silently drop the row on save.
+  const hasZeroQty = editItems.some((it) => !(it.grams > 0));
 
   // Current items to persist — from edit state if editing, else the result.
   const currentItems = (): AiAnalysisItem[] => {
     if (editing) {
       return editItems
-        .filter((it) => it.name.trim() && (parseFloat(it.gramsStr) || 0) > 0)
-        .map((it) => {
-          const m = macrosForEdit(it);
-          return {
-            name: it.name.trim(),
-            grams: m.grams,
-            kcal: m.kcal,
-            p: m.p,
-            u: m.u,
-            m: m.m,
-            source: it.source,
-            matchedFoodId: it.matchedFoodId,
-          };
-        });
+        .filter((it) => it.name.trim() && it.grams > 0)
+        .map((it) => ({
+          name: it.name.trim(),
+          grams: round1(it.grams),
+          kcal: round1(it.kcal),
+          p: round1(it.p),
+          u: round1(it.u),
+          m: round1(it.m),
+          source: it.source,
+          matchedFoodId: it.matchedFoodId,
+        }));
     }
     return result?.items ?? [];
   };
@@ -232,6 +346,11 @@ export function AiMealModal() {
 
   const doSave = async () => {
     if (!user || !result) return;
+    // Block instead of silently dropping rows whose quantity was cleared.
+    if (editing && hasZeroQty) {
+      showToast("Količina svake namirnice mora biti veća od 0");
+      return;
+    }
     const items = currentItems();
     if (items.length === 0) {
       showToast("Nema stavki za spremanje");
@@ -509,7 +628,8 @@ export function AiMealModal() {
           <div className="rounded-xl border border-border overflow-hidden mb-4">
             {editing
               ? editItems.map((it, idx) => {
-                  const m = macrosForEdit(it);
+                  const units = unitsForAiItem(it, foods);
+                  const zero = !(it.grams > 0);
                   return (
                     <div
                       key={idx}
@@ -522,38 +642,155 @@ export function AiMealModal() {
                         <div className="flex items-center gap-2 shrink-0">
                           <SourceBadge source={it.source} />
                           <button
-                            onClick={() => removeEditItem(idx)}
+                            onClick={() => setPendingRemove(idx)}
                             className="text-gray-300 text-lg w-6 h-6 flex items-center justify-center"
-                            aria-label="Ukloni"
+                            aria-label={`Ukloni ${it.name}`}
                           >
                             ×
                           </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <Input
                           type="number"
                           inputMode="decimal"
-                          value={it.gramsStr}
-                          onChange={(e) => setEditGrams(idx, e.target.value)}
-                          className="w-24 py-1.5! text-[13px]!"
-                          aria-label={`Grami za ${it.name}`}
+                          min={0}
+                          value={String(itemDisplayQty(it))}
+                          onChange={(e) =>
+                            updateQty(idx, parseFloat(e.target.value) || 0)
+                          }
+                          onFocus={(e) => {
+                            const input = e.currentTarget;
+                            setTimeout(() => input.select(), 0);
+                          }}
+                          className="w-20 py-1.5! text-[13px]!"
+                          aria-label={`Količina za ${it.name}`}
                         />
+                        {units.length > 1 ? (
+                          <Dropdown
+                            value={it.unit}
+                            onChange={(u) => changeUnit(idx, u)}
+                            options={unitDropdownOptions(units)}
+                            variant="pill"
+                            ariaLabel={`Mjerna jedinica za ${it.name}`}
+                          />
+                        ) : (
+                          <span
+                            className="text-[11px]"
+                            style={{ color: "var(--color-muted)" }}
+                          >
+                            {unitShortLabel(it.unit)}
+                          </span>
+                        )}
                         <span
                           className="text-[11px]"
                           style={{ color: "var(--color-muted)" }}
                         >
-                          g · {Math.round(m.kcal)} kcal · P {Math.round(m.p)} / UH{" "}
-                          {Math.round(m.u)} / M {Math.round(m.m)}
+                          {it.unit !== "g" && it.grams > 0
+                            ? `≈ ${Math.round(it.grams)} g · `
+                            : ""}
+                          {Math.round(it.kcal)} kcal · P {Math.round(it.p)} / UH{" "}
+                          {Math.round(it.u)} / M {Math.round(it.m)}
                         </span>
                       </div>
+                      {zero && (
+                        <div
+                          className="text-[11px] font-bold mt-1"
+                          style={{ color: "var(--color-orange)" }}
+                        >
+                          Količina mora biti veća od 0
+                        </div>
+                      )}
                     </div>
                   );
                 })
               : result.items.map((it, idx) => (
                   <ItemRow key={idx} item={it} />
                 ))}
+            {editing && editItems.length === 0 && (
+              <div
+                className="text-[11px] text-center py-3"
+                style={{ color: "var(--color-muted)" }}
+              >
+                Nema namirnica. Dodaj barem jednu.
+              </div>
+            )}
           </div>
+
+          {/* Add more foods — same search + barcode flow as recipes/favourites */}
+          {editing &&
+            (showAdd ? (
+              <div className="bg-bg rounded-xl px-3 py-2.5 mb-4 border border-dashed border-border">
+                <div
+                  className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "var(--color-muted)" }}
+                >
+                  Pretraži namirnicu
+                </div>
+                <Input
+                  value={addSearch}
+                  onChange={(e) => {
+                    setAddSearch(e.target.value);
+                    setAddFood(null);
+                  }}
+                  placeholder="npr. piletina, skuta…"
+                  className="mb-1"
+                />
+                {searchResults.length > 0 && (
+                  <div className="bg-white rounded-xl border border-border mb-2 max-h-36 overflow-y-auto">
+                    {searchResults.map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => selectFood(f)}
+                        className="w-full text-left px-3 py-2 text-xs border-b border-border last:border-b-0 hover:bg-blue-50"
+                        style={{ color: "var(--color-navy)" }}
+                      >
+                        {f.name}
+                        <span
+                          className="ml-1.5 font-normal"
+                          style={{ color: "var(--color-muted)" }}
+                        >
+                          {f.kcal} kcal/100g
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {addFood && (
+                  <IngredientAddPanel
+                    food={addFood}
+                    onAdd={onItemAdded}
+                    onCancel={resetAdd}
+                  />
+                )}
+                {!addFood && (
+                  <button
+                    onClick={resetAdd}
+                    className="text-[11px] underline mt-1"
+                    style={{ color: "var(--color-muted)" }}
+                  >
+                    Zatvori
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className="flex-1 py-2.5 rounded-xl border border-dashed border-border text-xs font-semibold"
+                  style={{ color: "var(--color-muted)" }}
+                >
+                  + Dodaj namirnicu
+                </button>
+                <button
+                  onClick={() => setScanOpen(true)}
+                  className="flex-1 py-2.5 rounded-xl border border-dashed border-border text-xs font-semibold"
+                  style={{ color: "var(--color-muted)" }}
+                >
+                  Skeniraj barkod
+                </button>
+              </div>
+            ))}
 
           {/* Meal */}
           <div
@@ -613,6 +850,43 @@ export function AiMealModal() {
           </StickyFooter>
         </>
       )}
+
+      {/* Barcode scanner — nested modal, same pattern as the recipe modals. */}
+      <Modal open={scanOpen} onClose={() => setScanOpen(false)}>
+        <div
+          className="text-base font-extrabold mb-3"
+          style={{ color: "var(--color-navy)" }}
+        >
+          Skeniraj barkod
+        </div>
+        <BarcodeScanner
+          open={scanOpen}
+          onClose={() => setScanOpen(false)}
+          onResult={onScanned}
+        />
+      </Modal>
+
+      {/* Removing a recognized food is destructive within the analysis, so
+          confirm it rather than deleting on a single tap. */}
+      <ConfirmPopup
+        open={pendingRemove !== null}
+        question={
+          pendingRemove !== null && editItems[pendingRemove]
+            ? `Ukloniti "${editItems[pendingRemove].name}" iz AI procjene?`
+            : "Ukloniti namirnicu iz AI procjene?"
+        }
+        onClose={() => setPendingRemove(null)}
+        button1={{
+          text: "Ne",
+          variant: "cancel",
+          onClick: () => setPendingRemove(null),
+        }}
+        button2={{
+          text: "Da, ukloni",
+          variant: "orange",
+          onClick: confirmRemove,
+        }}
+      />
     </Modal>
   );
 }
