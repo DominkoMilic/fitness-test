@@ -816,7 +816,6 @@ export function AiMealModal() {
                   onClick={() => setEditing(false)}
                   disabled={saving}
                   className="flex-1 py-3.5 rounded-xl border-[1.5px] border-[#b9c8e0] bg-[#e8edf6] text-navy hover:bg-[#d8e1f1] hover:border-[#8ea6cd] active:bg-[#c9d5ec] text-[15px] font-semibold disabled:opacity-50"
-                  style={{ color: "var(--color-muted)" }}
                 >
                   Natrag
                 </button>
