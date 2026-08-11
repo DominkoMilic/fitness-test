@@ -3,88 +3,97 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useUIStore } from "@/store/useUIStore";
 
-// Floating AI button. A single tap opens the modal instantly; to reposition it
-// the user press-and-HOLDS (~450 ms) to enter drag mode, then drags.
+// Floating AI button. A single tap opens the modal; press-and-HOLD (~450 ms)
+// enters drag mode to reposition it.
 //
-// Two mobile-specific traps this implementation avoids:
-//   • Opening is driven by the native `click` event (browsers apply their own
-//     jitter-tolerant tap heuristics), NOT by hand-rolled pointerup logic —
-//     home-made movement thresholds dropped a large share of real taps.
-//   • The stored position is RAW; clamping to the viewport happens at render
-//     time only. The on-screen keyboard shrinking window.innerHeight must
-//     never permanently rewrite the saved position (that's what shoved the
-//     button up to the modal-top after closing it).
+// Three traps this implementation is built to avoid:
+//   • Opening rides the native `click` event, so the browser's jitter-tolerant
+//     tap heuristics decide what a tap is — hand-rolled thresholds dropped a
+//     large share of real taps.
+//   • The button is anchored to the bottom-right CORNER (CSS right/bottom),
+//     not absolute top/left. Mobile viewports change height constantly (iOS
+//     URL bar ±140px, Android keyboard); with top/left the button gets clamped
+//     into mid-screen while the viewport is short, and once a drag ends there
+//     that stranded position is what gets saved. Anchoring sidesteps the whole
+//     class of bug.
+//   • Interaction state is dropped whenever the button stops rendering. The
+//     modal hides it mid-press, so pointerup never arrives; leftover
+//     `armed` state used to make it follow the pointer while swallowing its
+//     own clicks — the "stuck, can't move it" report.
 
 const BTN = 56; // w-14/h-14
 const MARGIN = 12;
-const NAV_RESERVE = 84; // keep the button above the bottom nav
+const NAV_RESERVE = 84; // keep the button clear of the bottom nav
 const LONG_PRESS_MS = 450; // hold this long to enter drag mode
-const SWIPE_CANCEL = 14; // px (euclidean) moved before the hold fires → treat as swipe
+const SWIPE_CANCEL = 14; // px moved before the hold fires → treat as a swipe
 const POS_KEY = "kf_ai_fab_pos";
 
-type Pos = { x: number; y: number };
+/** Gap from the viewport's right/bottom edges to the button's edges. */
+type Anchor = { right: number; bottom: number };
 
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
-function bounds() {
+function clampAnchor(a: Anchor): Anchor {
   const w = window.innerWidth;
   const h = window.innerHeight;
   return {
-    minX: MARGIN,
-    maxX: Math.max(MARGIN, w - BTN - MARGIN),
-    minY: MARGIN,
-    maxY: Math.max(MARGIN, h - BTN - NAV_RESERVE),
+    right: clamp(a.right, MARGIN, Math.max(MARGIN, w - BTN - MARGIN)),
+    bottom: clamp(
+      a.bottom,
+      NAV_RESERVE,
+      Math.max(NAV_RESERVE, h - BTN - MARGIN),
+    ),
   };
 }
 
-function clampPos(p: Pos): Pos {
-  const b = bounds();
-  return { x: clamp(p.x, b.minX, b.maxX), y: clamp(p.y, b.minY, b.maxY) };
+function defaultAnchor(): Anchor {
+  return { right: MARGIN, bottom: NAV_RESERVE };
 }
 
-function defaultPos(): Pos {
-  const b = bounds();
-  // Bottom-right, just above the nav.
-  return { x: b.maxX, y: b.maxY };
-}
-
-function savePos(p: Pos | null) {
-  if (!p) return;
+function readAnchor(): Anchor {
   try {
-    localStorage.setItem(POS_KEY, JSON.stringify(p));
+    const raw = localStorage.getItem(POS_KEY);
+    if (!raw) return defaultAnchor();
+    const p = JSON.parse(raw) as Partial<Anchor & { x: number; y: number }>;
+    if (typeof p?.right === "number" && typeof p?.bottom === "number") {
+      if (Number.isFinite(p.right) && Number.isFinite(p.bottom)) {
+        return clampAnchor({ right: p.right, bottom: p.bottom });
+      }
+    }
+    // Migrate the old absolute {x,y} format to a corner anchor.
+    if (typeof p?.x === "number" && typeof p?.y === "number") {
+      return clampAnchor({
+        right: window.innerWidth - p.x - BTN,
+        bottom: window.innerHeight - p.y - BTN,
+      });
+    }
+  } catch {}
+  return defaultAnchor();
+}
+
+function saveAnchor(a: Anchor) {
+  try {
+    localStorage.setItem(POS_KEY, JSON.stringify(a));
   } catch {}
 }
 
 export function AiFab() {
   const openModal = useUIStore((s) => s.openModal);
   const modal = useUIStore((s) => s.modal);
-  // Only on the diary (dashboard) page — not on search/add-meal, favorites,
-  // recipes, settings etc.
+  // Only on the diary (dashboard) page — not on search, favourites, recipes…
   const pathname = usePathname();
   const onDashboard = pathname?.startsWith("/dashboard") ?? false;
 
-  // RAW position (persisted). Never clamped by resize events — see header note.
-  const [pos, setPos] = useState<Pos | null>(() => {
-    if (typeof window === "undefined") return null;
-    let start: Pos | null = null;
-    try {
-      const raw = localStorage.getItem(POS_KEY);
-      if (raw) {
-        const p = JSON.parse(raw) as Pos;
-        if (typeof p?.x === "number" && typeof p?.y === "number") start = p;
-      }
-    } catch {}
-    return start ?? defaultPos();
-  });
+  const [anchor, setAnchor] = useState<Anchor | null>(() =>
+    typeof window === "undefined" ? null : readAnchor(),
+  );
   const [dragging, setDragging] = useState(false);
-  // Resize/orientation only needs a re-render (render-time clamp picks up the
-  // new bounds); it must NOT rewrite `pos`.
+  // Viewport changes only need a re-render so the render-time clamp re-runs.
   const [, bumpViewport] = useState(0);
   const btnRef = useRef<HTMLButtonElement | null>(null);
 
-  // Press bookkeeping. `armed` = long-press elapsed, drag mode active.
   const press = useRef<{
     offX: number;
     offY: number;
@@ -94,10 +103,9 @@ export function AiFab() {
     pointerId: number;
   } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Timestamp of the last drag/hold end. The click that MAY follow pointerup
-  // is ignored inside a short window. A timestamp (not a one-shot boolean) is
-  // self-healing: after a big drag mobile browsers often never synthesize the
-  // click, and a lingering boolean would swallow the NEXT real tap instead.
+  // Timestamp (not a one-shot flag): after a real drag many mobile browsers
+  // never synthesize the trailing click, and a lingering flag would eat the
+  // NEXT genuine tap instead.
   const lastDragEnd = useRef(0);
 
   const clearTimer = useCallback(() => {
@@ -107,18 +115,40 @@ export function AiFab() {
     }
   }, []);
 
+  // Re-clamp on layout AND visual-viewport changes. iOS does not fire
+  // window.resize for keyboard/URL-bar changes, only visualViewport events.
   useEffect(() => {
     const onResize = () => bumpViewport((t) => t + 1);
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      vv?.removeEventListener("resize", onResize);
+    };
   }, []);
 
-  // Hard-block page scroll for touches that start on the FAB. `touch-action:
-  // none` alone is flaky on some mobile browsers (a scroll can still start,
-  // which also fires pointercancel and kills the long-press). React's
-  // synthetic touch handlers are passive, so this needs a manual non-passive
-  // listener. Re-attach whenever the button (re)mounts (modal open/close).
-  const rendered = onDashboard && modal === null && pos !== null;
+  const rendered = onDashboard && modal === null && anchor !== null;
+
+  // Drop any in-flight press when the button stops rendering (a modal opens,
+  // route change). Without this, pointerup never reaches the removed element,
+  // and the leftover `armed` state makes the button drag on any later pointer
+  // move while suppressing its own clicks — the "stuck, can't move it" bug.
+  useEffect(() => {
+    if (!rendered) return;
+    return () => {
+      press.current = null;
+      clearTimer();
+      setDragging(false);
+    };
+  }, [rendered, clearTimer]);
+
+  // Block page scroll for touches starting on the FAB. `touch-action: none`
+  // alone is flaky on some mobile browsers (a scroll can still begin, which
+  // fires pointercancel and kills the long-press). React's synthetic touch
+  // handlers are passive, so this needs a manual non-passive listener.
   useEffect(() => {
     const el = btnRef.current;
     if (!el) return;
@@ -127,10 +157,8 @@ export function AiFab() {
     return () => el.removeEventListener("touchmove", block);
   }, [rendered]);
 
-  // Clean up a pending timer if unmounted mid-press.
   useEffect(() => () => clearTimer(), [clearTimer]);
 
-  // Long-press elapsed → enter drag mode (capture pointer, haptic nudge).
   const arm = useCallback(() => {
     const p = press.current;
     const el = btnRef.current;
@@ -162,20 +190,38 @@ export function AiFab() {
     [arm, clearTimer],
   );
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    const p = press.current;
-    if (!p) return;
-    if (p.armed) {
-      // Clamp while dragging — the user is placing it inside the live viewport.
-      setPos(clampPos({ x: e.clientX - p.offX, y: e.clientY - p.offY }));
-      return;
-    }
-    // Clear swipe across the button before the hold fires → not a drag intent;
-    // just stop the pending long-press. Whether it still counts as a tap is
-    // left entirely to the browser's own click heuristics.
-    const dist = Math.hypot(e.clientX - p.startX, e.clientY - p.startY);
-    if (dist > SWIPE_CANCEL) clearTimer();
-  }, [clearTimer]);
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const p = press.current;
+      if (!p) return;
+      // Only the pointer that started the press may drag, and for a mouse a
+      // button must still be held — otherwise a plain hover (laptop) or a
+      // second finger could drag the button around.
+      if (e.pointerId !== p.pointerId) return;
+      if (e.pointerType === "mouse" && e.buttons === 0) {
+        press.current = null;
+        clearTimer();
+        setDragging(false);
+        return;
+      }
+      if (p.armed) {
+        const left = e.clientX - p.offX;
+        const top = e.clientY - p.offY;
+        setAnchor(
+          clampAnchor({
+            right: window.innerWidth - left - BTN,
+            bottom: window.innerHeight - top - BTN,
+          }),
+        );
+        return;
+      }
+      // A clear swipe before the hold fires is not a drag intent — just cancel
+      // the pending long-press and let the browser decide about the tap.
+      const dist = Math.hypot(e.clientX - p.startX, e.clientY - p.startY);
+      if (dist > SWIPE_CANCEL) clearTimer();
+    },
+    [clearTimer],
+  );
 
   const endPress = useCallback(
     (e: React.PointerEvent) => {
@@ -189,12 +235,10 @@ export function AiFab() {
         } catch {}
       }
       if (p?.armed) {
-        // Drag (or bare hold) finished — persist and open a short window in
-        // which any trailing synthesized click is ignored.
         lastDragEnd.current = Date.now();
         setDragging(false);
-        setPos((cur) => {
-          savePos(cur);
+        setAnchor((cur) => {
+          if (cur) saveAnchor(cur);
           return cur;
         });
       }
@@ -203,18 +247,14 @@ export function AiFab() {
   );
 
   const onClick = useCallback(() => {
-    // Ignore the click that trails a drag/hold; taps outside this window
-    // always open (no stale one-shot state to eat them).
+    // Ignore the click trailing a drag; taps outside that window always open.
     if (Date.now() - lastDragEnd.current < 600) return;
     openModal("aiMeal");
   }, [openModal]);
 
-  // Render only on the dashboard, and hide while a modal is open so it
-  // doesn't float over sheets/backdrops. (`!pos` is implied by `rendered`
-  // but repeated so TypeScript narrows it for clampPos below.)
-  if (!rendered || !pos) return null;
+  if (!rendered || !anchor) return null;
 
-  const shown = clampPos(pos);
+  const shown = clampAnchor(anchor);
 
   return (
     <button
@@ -223,16 +263,16 @@ export function AiFab() {
       onPointerMove={onPointerMove}
       onPointerUp={endPress}
       onPointerCancel={endPress}
+      onLostPointerCapture={endPress}
       onClick={onClick}
-      // Long-press must arm drag mode, not open the mobile context menu.
       onContextMenu={(e) => e.preventDefault()}
       aria-label="AI prepoznavanje obroka (dodirni za otvaranje, drži i povuci za pomicanje)"
       className={`fixed z-20 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg select-none ${
         dragging ? "scale-110 cursor-grabbing" : "cursor-pointer active:scale-95"
       } transition-transform`}
       style={{
-        left: shown.x,
-        top: shown.y,
+        right: shown.right,
+        bottom: shown.bottom,
         touchAction: "none",
         WebkitUserSelect: "none",
         background: "linear-gradient(160deg,#1b3255 0%,#0f1f38 100%)",
