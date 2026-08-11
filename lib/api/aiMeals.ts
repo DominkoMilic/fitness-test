@@ -16,9 +16,16 @@ async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as
-      | { error?: string }
+      | { error?: string; userMessage?: string }
       | null;
-    throw new Error(body?.error || `Request failed: ${res.status}`);
+    // `userMessage` is written for the user (e.g. Gemini is down). Flag it so
+    // the UI shows it verbatim rather than replacing it with a generic
+    // "server error" that would wrongly blame the app.
+    const err = new Error(
+      body?.userMessage || body?.error || `Request failed: ${res.status}`,
+    ) as Error & { userSafe?: boolean };
+    if (body?.userMessage) err.userSafe = true;
+    throw err;
   }
   return (await res.json()) as T;
 }

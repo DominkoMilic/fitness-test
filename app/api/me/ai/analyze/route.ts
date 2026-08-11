@@ -3,7 +3,11 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/utils/requireUser";
 import { analyzeWithGemini } from "@/lib/ai/gemini";
 import { buildAnalysisFromRaw } from "@/lib/ai/matchFood";
-import { OFF_TOPIC_MESSAGE } from "@/lib/ai/guard";
+import {
+  GEMINI_DOWN_MESSAGE,
+  isUpstreamGeminiFailure,
+  OFF_TOPIC_MESSAGE,
+} from "@/lib/ai/guard";
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_TEXT = 300;
@@ -87,6 +91,19 @@ export async function POST(req: Request) {
   try {
     raw = await analyzeWithGemini({ imageBase64, mime, text });
   } catch (e) {
+    // Distinguish "Google's service is unavailable" from "we broke something".
+    // `userMessage` is a deliberate, user-facing string the client shows
+    // verbatim instead of its own generic server-error text.
+    if (isUpstreamGeminiFailure(e)) {
+      return NextResponse.json(
+        {
+          error: (e as Error).message,
+          userMessage: GEMINI_DOWN_MESSAGE,
+          upstream: true,
+        },
+        { status: 503 },
+      );
+    }
     return NextResponse.json(
       { error: `AI analiza nije uspjela: ${(e as Error).message}` },
       { status: 502 },
