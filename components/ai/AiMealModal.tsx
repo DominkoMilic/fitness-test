@@ -48,8 +48,13 @@ const TECHNICAL_ERROR =
   /(HTTP\b|\b5\d\d\b|Gemini|fetch|Failed|Unauthorized|Request failed|permission denied|non-JSON|models?\s+failed|timeout|network|ECONN|TypeError)/i;
 
 function friendlyError(e: unknown): string {
-  const msg = (e as Error)?.message?.trim();
+  const err = e as Error & { userSafe?: boolean };
+  const msg = err?.message?.trim();
   if (!msg) return GENERIC_ERROR;
+  // A message the server wrote for the user (e.g. "Gemini is down") is shown
+  // as-is. It mentions Gemini by name, so the technical-error filter below
+  // would otherwise replace it with text that wrongly blames the app.
+  if (err.userSafe) return msg;
   return TECHNICAL_ERROR.test(msg) ? GENERIC_ERROR : msg;
 }
 
