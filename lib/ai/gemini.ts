@@ -91,8 +91,8 @@ const RESPONSE_SCHEMA = {
 // then concrete lighter models as cheaper/available backups.
 const DEFAULT_FALLBACK_MODELS = [
   "gemini-flash-latest",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
+  "gemini-3.5-flash",
+  "gemini-flash-lite-latest",
 ];
 
 function getConfig() {
@@ -269,6 +269,7 @@ export async function analyzeWithGemini(
   const body = buildRequestBody(input);
 
   let lastError: GeminiModelError | null = null;
+  const failures: string[] = [];
   let sawEmpty = false;
 
   for (const model of models) {
@@ -281,6 +282,7 @@ export async function analyzeWithGemini(
           ? e
           : new GeminiModelError((e as Error).message, { retryable: false });
       lastError = err;
+      failures.push(err.message);
       if (err.empty) sawEmpty = true;
       // Non-retryable (e.g. auth) → stop immediately, no point trying others.
       if (!err.retryable) throw err;
@@ -293,6 +295,12 @@ export async function analyzeWithGemini(
   // error, so guarded content doesn't surface as a crash.
   if (sawEmpty) {
     return { raw: EMPTY_RAW, model: models[models.length - 1] };
+  }
+  // Report EVERY model's failure, not just the last one. Classification looks
+  // at this text: with only the last error, an outage on the primary (503)
+  // was hidden behind a later model answering 404 and got blamed on us.
+  if (failures.length > 0) {
+    throw new Error(`All Gemini models failed: ${failures.join("; ")}`);
   }
   throw lastError ?? new Error("All Gemini models failed");
 }
