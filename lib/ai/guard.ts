@@ -17,16 +17,21 @@ export const GEMINI_DOWN_MESSAGE =
 // server errors (5xx), timeouts, transport failures, and responses we could
 // not use. Matched on the message text so this stays valid whether the caller
 // tries a single model or a whole fallback chain.
+//
+// Codes that mean WE are misconfigured (400/401/403/404, missing key) are
+// deliberately absent, so they fall through to the generic error instead of
+// being excused as "Google is down".
 const UPSTREAM_FAILURE =
   /HTTP (?:408|409|425|429|5\d\d)|request failed|All Gemini models failed|non-JSON output|empty candidate|timeout|ECONN|fetch failed/i;
 
-// Our own misconfiguration — a bad or missing API key is genuinely our bug and
-// must NOT be excused as "Google is down".
-const OUR_FAULT = /HTTP (?:400|401|403|404)|Missing GEMINI_API_KEY|No input/i;
-
-/** True when the analysis failed on Google's side, not ours. */
+/**
+ * True when the analysis failed on Google's side, not ours.
+ *
+ * A fallback chain reports every model it tried, so any single upstream
+ * signal wins: one overloaded model (503) next to a mis-configured one (404)
+ * must still read as "Google is struggling". Judging by the last error alone
+ * blamed the app for an outage it did not cause.
+ */
 export function isUpstreamGeminiFailure(e: unknown): boolean {
-  const msg = (e as Error)?.message ?? "";
-  if (OUR_FAULT.test(msg)) return false;
-  return UPSTREAM_FAILURE.test(msg);
+  return UPSTREAM_FAILURE.test((e as Error)?.message ?? "");
 }
