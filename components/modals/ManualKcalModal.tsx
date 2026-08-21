@@ -241,8 +241,7 @@ export function ManualKcalModal({ onAdded }: { onAdded?: () => void }) {
         <div className="flex gap-2.5">
           <button
             onClick={closeModal}
-            className="flex-1 py-3.5 rounded-xl border-[1.5px] border-border bg-bg text-[15px] font-semibold"
-            style={{ color: "var(--color-muted)" }}
+            className="flex-1 py-3.5 rounded-xl border-[1.5px] border-[#b9c8e0] bg-[#e8edf6] text-navy hover:bg-[#d8e1f1] hover:border-[#8ea6cd] active:bg-[#c9d5ec] text-[15px] font-semibold"
           >
             Odustani
           </button>

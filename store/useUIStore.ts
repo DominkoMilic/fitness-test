@@ -19,7 +19,8 @@ export type ModalKind =
   | "newRecipe"
   | "syncPreview"
   | "manualKcal"
-  | "recipeLog";
+  | "recipeLog"
+  | "aiMeal";
 
 type UIState = {
   loading: boolean;

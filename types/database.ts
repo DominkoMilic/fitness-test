@@ -1,6 +1,9 @@
 // Supabase DB row types — keep in sync with schema.
 // Replace via `supabase gen types typescript` once CLI configured.
 
+// Type-only import (cycle with app.ts is fine — erased at compile time).
+import type { AiAnalysisItem, AiConfidence } from "./app";
+
 export type Database = {
   public: {
     Tables: {
@@ -46,6 +49,18 @@ export type Database = {
         Update: Partial<DailyMetricsInsert>;
         Relationships: [];
       };
+      ai_meal_analyses: {
+        Row: AiMealAnalysisRow;
+        Insert: AiMealAnalysisInsert;
+        Update: Partial<AiMealAnalysisInsert>;
+        Relationships: [];
+      };
+      ai_usage: {
+        Row: AiUsageRow;
+        Insert: AiUsageInsert;
+        Update: Partial<AiUsageInsert>;
+        Relationships: [];
+      };
     };
     Views: {
       user_activity_view: {
@@ -62,6 +77,13 @@ export type Database = {
           current_streak: number | null;
           last_upload_date: string | null;
         }[];
+      };
+      bump_ai_usage: {
+        Args: {
+          p_user_id: string;
+          p_date: string;
+        };
+        Returns: number;
       };
     };
     Enums: Record<string, never>;
@@ -164,17 +186,31 @@ export type FoodLogRow = {
   group_id: string | null;
   group_name: string | null;
   group_portions: number | null;
+  // How the entry was created. 'manual' for hand/barcode/recipe entries,
+  // 'ai' for Gemini Vision analyses. See 2026-07-21_food-logs-ai-source.sql.
+  source: FoodLogSource;
+  // Back-link to the ai_meal_analyses row this entry came from (source='ai').
+  ai_analysis_id: string | null;
   created_at: string;
 };
+export type FoodLogSource = "manual" | "ai";
 export type FoodLogInsert = Omit<
   FoodLogRow,
-  "id" | "created_at" | "group_id" | "group_name" | "group_portions"
+  | "id"
+  | "created_at"
+  | "group_id"
+  | "group_name"
+  | "group_portions"
+  | "source"
+  | "ai_analysis_id"
 > & {
   id?: string;
   created_at?: string;
   group_id?: string | null;
   group_name?: string | null;
   group_portions?: number | null;
+  source?: FoodLogSource;
+  ai_analysis_id?: string | null;
 };
 
 export type FavoriteItem = {
@@ -270,3 +306,37 @@ export type DailyMetricsApi = {
   steps: number | null;
   kcal: number;
 };
+
+// AI meal analysis persisted for later review. `items` holds AiAnalysisItem[]
+// (see types/app.ts). See 2026-07-21_ai-meal-analyses.sql.
+export type AiMealAnalysisRow = {
+  id: string;
+  user_id: string;
+  date: string;
+  meal: MealKey | null;
+  title: string;
+  items: AiAnalysisItem[];
+  total_kcal: number;
+  total_p: number;
+  total_u: number;
+  total_m: number;
+  kcal_min: number | null;
+  kcal_max: number | null;
+  confidence: AiConfidence;
+  model: string;
+  created_at: string;
+};
+export type AiMealAnalysisInsert = Omit<
+  AiMealAnalysisRow,
+  "id" | "created_at"
+> & {
+  id?: string;
+  created_at?: string;
+};
+
+export type AiUsageRow = {
+  user_id: string;
+  date: string;
+  count: number;
+};
+export type AiUsageInsert = AiUsageRow;

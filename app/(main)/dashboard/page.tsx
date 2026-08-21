@@ -108,8 +108,8 @@ export default function DashboardPage() {
         open={pendingDeleteGroup !== null}
         question={
           pendingDeleteGroup
-            ? `Obrisati recept \"${pendingDeleteGroup.name}\" (${pendingDeleteGroup.items.length} ${pendingDeleteGroup.items.length === 1 ? "namirnica" : "namirnice"}) iz dnevnika?`
-            : "Obrisati recept iz dnevnika?"
+            ? `Obrisati ${pendingDeleteGroup.items.every((i) => i.source === "ai") ? "AI obrok" : "recept"} \"${pendingDeleteGroup.name}\" (${pendingDeleteGroup.items.length} ${pendingDeleteGroup.items.length === 1 ? "namirnica" : "namirnice"}) iz dnevnika?`
+            : "Obrisati unos iz dnevnika?"
         }
         onClose={() => setPendingDeleteGroup(null)}
         button1={{

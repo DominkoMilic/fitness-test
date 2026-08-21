@@ -38,11 +38,15 @@ export function RecipeLogModal({
   // All rows deleted (or day switched) — nothing to show.
   if (items.length === 0) return null;
 
-  const name = items[0].group_name || "Recept";
+  // AI meals reuse this recipe-group drill-in, so distinguish them: "1
+  // porcija" is meaningless for a photo analysis, and the estimate disclaimer
+  // has to follow the entry everywhere it is shown.
+  const isAi = items.every((l) => l.source === "ai");
+  const name = items[0].group_name || (isAi ? "AI obrok" : "Recept");
   const portions =
     items[0].group_portions == null ? null : Number(items[0].group_portions);
   const totals = sumLogs(items);
-  const sub = portionsLabel(portions);
+  const sub = isAi ? "" : portionsLabel(portions);
 
   return (
     <Modal open onClose={closeModal}>
@@ -59,6 +63,15 @@ export function RecipeLogModal({
           {Math.round(totals.kcal)} kcal
         </span>
       </div>
+      {isAi && (
+        <div
+          className="mb-4 px-3 py-2 rounded-lg text-[11px] leading-snug"
+          style={{ background: "var(--color-bg)", color: "var(--color-muted)" }}
+        >
+          AI procjena — nije 100% točna, služi kao pomoć. Količine možeš
+          ispraviti dodirom na namirnicu.
+        </div>
+      )}
 
       <div className="rounded-2xl border border-border overflow-hidden">
         {items.map((it) => (
@@ -296,8 +309,7 @@ function FoodEditor({
       <div className="flex gap-2.5">
         <button
           onClick={onClose}
-          className="flex-1 py-2.5 rounded-xl border-[1.5px] border-border bg-bg text-[14px] font-semibold"
-          style={{ color: "var(--color-muted)" }}
+          className="flex-1 py-2.5 rounded-xl border-[1.5px] border-[#b9c8e0] bg-[#e8edf6] text-navy hover:bg-[#d8e1f1] hover:border-[#8ea6cd] active:bg-[#c9d5ec] text-[14px] font-semibold"
         >
           Odustani
         </button>
