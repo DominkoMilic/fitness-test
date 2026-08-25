@@ -6,6 +6,7 @@ import type { AiConfidence } from "@/types/app";
 // server-side; this module must never be imported from a client component.
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const REQUEST_TIMEOUT_MS = 12_000;
 
 // Per-item estimate straight from the model, per-100g. Nutrition may later be
 // overridden by our own DB when the name matches a `foods` row (see matchFood).
@@ -87,8 +88,8 @@ const RESPONSE_SCHEMA = {
 
 // Ordered fallback chain used when GEMINI_FALLBACK_MODELS is not set. If the
 // primary model is overloaded / unavailable / returns unusable data, we retry
- // the next one. Use explicit stable model IDs so model changes do not happen
- // silently through an alias.
+// the next one. Use explicit stable model IDs so model changes do not happen
+// silently through an alias.
 const DEFAULT_FALLBACK_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
@@ -103,7 +104,10 @@ function getConfig() {
   const primary = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
   const fbEnv = process.env.GEMINI_FALLBACK_MODELS?.trim();
   const fallbacks = fbEnv
-    ? fbEnv.split(",").map((s) => s.trim()).filter(Boolean)
+    ? fbEnv
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     : DEFAULT_FALLBACK_MODELS;
   // Primary first, then fallbacks, de-duplicated (preserve order).
   const models = [...new Set([primary, ...fallbacks])];
@@ -157,11 +161,16 @@ function coerce(parsed: unknown): GeminiRaw {
 class GeminiModelError extends Error {
   retryable: boolean;
   empty: boolean;
-  constructor(message: string, opts: { retryable: boolean; empty?: boolean }) {
+  status: number | null;
+  constructor(
+    message: string,
+    opts: { retryable: boolean; empty?: boolean; status?: number },
+  ) {
     super(message);
     this.name = "GeminiModelError";
     this.retryable = opts.retryable;
     this.empty = Boolean(opts.empty);
+    this.status = opts.status ?? null;
   }
 }
 
@@ -222,20 +231,29 @@ async function callModel(
         "x-goog-api-key": apiKey,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (e) {
-    // Transport failure — try the next model.
-    throw new GeminiModelError(`${model}: request failed: ${(e as Error).message}`, {
-      retryable: true,
-    });
+    const error = e as Error;
+    const timedOut =
+      error.name === "TimeoutError" || error.name === "AbortError";
+    throw new GeminiModelError(
+      `${model}: ${timedOut ? `timeout after ${REQUEST_TIMEOUT_MS}ms` : `request failed: ${error.message}`}`,
+      { retryable: true },
+    );
   }
 
   if (!res.ok) {
     const detail = (await res.text().catch(() => "")).slice(0, 300);
-    // Auth/permission problems repeat on every model → don't waste calls.
-    const fatal = res.status === 401 || res.status === 403;
+    // Bad model names and auth/configuration failures repeat on every model.
+    const fatal =
+      res.status === 400 ||
+      res.status === 401 ||
+      res.status === 403 ||
+      res.status === 404;
     throw new GeminiModelError(`${model}: HTTP ${res.status}: ${detail}`, {
       retryable: !fatal,
+      status: res.status,
     });
   }
 
@@ -255,7 +273,9 @@ async function callModel(
     return coerce(JSON.parse(raw));
   } catch {
     // Malformed output — another model may do better.
-    throw new GeminiModelError(`${model}: non-JSON output`, { retryable: true });
+    throw new GeminiModelError(`${model}: non-JSON output`, {
+      retryable: true,
+    });
   }
 }
 
