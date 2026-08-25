@@ -87,12 +87,12 @@ const RESPONSE_SCHEMA = {
 
 // Ordered fallback chain used when GEMINI_FALLBACK_MODELS is not set. If the
 // primary model is overloaded / unavailable / returns unusable data, we retry
-// the next one. "-latest" aliases first (resilient to pinned-model deprecations),
-// then concrete lighter models as cheaper/available backups.
+ // the next one. Use explicit stable model IDs so model changes do not happen
+ // silently through an alias.
 const DEFAULT_FALLBACK_MODELS = [
-  "gemini-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
   "gemini-3.5-flash",
-  "gemini-flash-lite-latest",
 ];
 
 function getConfig() {
@@ -100,7 +100,7 @@ function getConfig() {
   if (!apiKey) {
     throw new Error("Missing GEMINI_API_KEY — set it in .env.local");
   }
-  const primary = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
+  const primary = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
   const fbEnv = process.env.GEMINI_FALLBACK_MODELS?.trim();
   const fallbacks = fbEnv
     ? fbEnv.split(",").map((s) => s.trim()).filter(Boolean)
