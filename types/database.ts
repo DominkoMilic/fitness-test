@@ -85,6 +85,13 @@ export type Database = {
         };
         Returns: number;
       };
+      refund_ai_usage: {
+        Args: {
+          p_user_id: string;
+          p_date: string;
+        };
+        Returns: number;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

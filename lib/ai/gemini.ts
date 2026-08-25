@@ -7,6 +7,23 @@ import type { AiConfidence } from "@/types/app";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
+// Per-model ceiling, and a budget for the whole fallback chain. Both MUST stay
+// under the platform's function limit, or it kills the request first and the
+// user gets an opaque platform error instead of our message — a timeout above
+// the function budget can never fire.
+//
+// Vercel Hobby caps functions at 10s regardless of `maxDuration`, so the
+// defaults here are sized for Hobby: one 6s hop plus a retry still lands
+// inside 9s. On Pro (`maxDuration = 30` takes effect) raise them via env:
+//   GEMINI_TIMEOUT_MS=7000  GEMINI_CHAIN_DEADLINE_MS=15000
+// Measured p50 for a photo request is ~2.4s, so both are generous either way.
+function envMs(name: string, fallback: number): number {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+const REQUEST_TIMEOUT_MS = envMs("GEMINI_TIMEOUT_MS", 6_000);
+const CHAIN_DEADLINE_MS = envMs("GEMINI_CHAIN_DEADLINE_MS", 9_000);
+
 // Per-item estimate straight from the model, per-100g. Nutrition may later be
 // overridden by our own DB when the name matches a `foods` row (see matchFood).
 export type GeminiRawItem = {
@@ -87,20 +104,22 @@ const RESPONSE_SCHEMA = {
 
 // Ordered fallback chain used when GEMINI_FALLBACK_MODELS is not set. If the
 // primary model is overloaded / unavailable / returns unusable data, we retry
- // the next one. Use explicit stable model IDs so model changes do not happen
- // silently through an alias.
-const DEFAULT_FALLBACK_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-3.5-flash",
-];
+// the next one. Use explicit stable model IDs so model changes do not happen
+// silently through an alias.
+//
+// Chosen on measured latency for this exact request shape (system prompt +
+// responseSchema + 1024px JPEG). Deliberate exclusions: the gemini-2.5-* ids
+// now 404 ("no longer available to new users"); gemini-3.5-flash-lite blew
+// past 40s on 2 of 5 runs and gemini-3.7-flash exceeded 60s, so neither is
+// safe as a fallback.
+const DEFAULT_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
 
 function getConfig() {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("Missing GEMINI_API_KEY — set it in .env.local");
   }
-  const primary = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+  const primary = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
   const fbEnv = process.env.GEMINI_FALLBACK_MODELS?.trim();
   const fallbacks = fbEnv
     ? fbEnv.split(",").map((s) => s.trim()).filter(Boolean)
@@ -174,7 +193,37 @@ const EMPTY_RAW: GeminiRaw = {
   kcalMax: null,
 };
 
-function buildRequestBody(input: GeminiInput) {
+type RequestBody = {
+  systemInstruction: { parts: { text: string }[] };
+  contents: { role: string; parts: Record<string, unknown>[] }[];
+  generationConfig: Record<string, unknown>;
+};
+
+// Gemini's default "thinking" dominates latency here: ~9.0s vs ~2.4s median
+// for the same photo request. This task is constrained schema-filling, which
+// is where reasoning tokens add least, so we turn it off.
+//
+// The *-lite models reject `thinkingBudget` outright (400 INVALID_ARGUMENT)
+// and already emit zero thinking tokens, so sending the field would break them
+// as fallbacks for no gain. Omit it for them.
+function supportsThinkingConfig(model: string): boolean {
+  return !model.includes("-lite");
+}
+
+// Adds the per-model generationConfig to a shared base body. Spreads rather
+// than rebuilding so the base64 image is shared by reference, never copied.
+function withThinkingConfig(base: RequestBody, model: string): RequestBody {
+  if (!supportsThinkingConfig(model)) return base;
+  return {
+    ...base,
+    generationConfig: {
+      ...base.generationConfig,
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  };
+}
+
+function buildRequestBody(input: GeminiInput): RequestBody {
   const parts: Record<string, unknown>[] = [];
   const text = input.text?.trim();
   if (text) parts.push({ text });
@@ -212,7 +261,18 @@ async function callModel(
   model: string,
   apiKey: string,
   body: object,
+  deadline: number,
 ): Promise<GeminiRaw> {
+  // Never let one hop eat the whole chain budget, and never start a hop we
+  // have no time left to finish.
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    throw new GeminiModelError(`${model}: chain deadline exceeded (timeout)`, {
+      retryable: false,
+    });
+  }
+  const timeoutMs = Math.min(REQUEST_TIMEOUT_MS, remaining);
+
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/${model}:generateContent`, {
@@ -222,17 +282,30 @@ async function callModel(
         "x-goog-api-key": apiKey,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (e) {
-    // Transport failure — try the next model.
-    throw new GeminiModelError(`${model}: request failed: ${(e as Error).message}`, {
-      retryable: true,
-    });
+    // Transport failure or timeout — try the next model.
+    const error = e as Error;
+    const timedOut =
+      error.name === "TimeoutError" || error.name === "AbortError";
+    throw new GeminiModelError(
+      `${model}: ${timedOut ? `timeout after ${timeoutMs}ms` : `request failed: ${error.message}`}`,
+      { retryable: true },
+    );
   }
 
   if (!res.ok) {
     const detail = (await res.text().catch(() => "")).slice(0, 300);
-    // Auth/permission problems repeat on every model → don't waste calls.
+    // Only credential problems repeat identically on every model. A 404 is
+    // model-SPECIFIC ("this id is no longer available"), so it must fall
+    // through to the next model — treating it as fatal would have turned the
+    // dead gemini-2.5-* primary into a hard outage instead of a fallback.
+    // 400 stays retryable for the same reason: it can be a per-model param
+    // rejection rather than a malformed body.
+    //
+    // These are still OUR misconfiguration, not a Google outage; guard.ts
+    // classifies them so the user isn't told "Gemini is down".
     const fatal = res.status === 401 || res.status === 403;
     throw new GeminiModelError(`${model}: HTTP ${res.status}: ${detail}`, {
       retryable: !fatal,
@@ -266,7 +339,8 @@ export async function analyzeWithGemini(
   input: GeminiInput,
 ): Promise<{ raw: GeminiRaw; model: string }> {
   const { apiKey, models } = getConfig();
-  const body = buildRequestBody(input);
+  const base = buildRequestBody(input);
+  const deadline = Date.now() + CHAIN_DEADLINE_MS;
 
   let lastError: GeminiModelError | null = null;
   const failures: string[] = [];
@@ -274,7 +348,12 @@ export async function analyzeWithGemini(
 
   for (const model of models) {
     try {
-      const raw = await callModel(model, apiKey, body);
+      const raw = await callModel(
+        model,
+        apiKey,
+        withThinkingConfig(base, model),
+        deadline,
+      );
       return { raw, model };
     } catch (e) {
       const err =

@@ -22,7 +22,7 @@ export const GEMINI_DOWN_MESSAGE =
 // deliberately absent, so they fall through to the generic error instead of
 // being excused as "Google is down".
 const UPSTREAM_FAILURE =
-  /HTTP (?:408|409|425|429|5\d\d)|request failed|All Gemini models failed|non-JSON output|empty candidate|timeout|ECONN|fetch failed/i;
+  /HTTP (?:408|409|425|429|5\d\d)|request failed|non-JSON output|empty candidate|timeout|ECONN|fetch failed/i;
 
 /**
  * True when the analysis failed on Google's side, not ours.

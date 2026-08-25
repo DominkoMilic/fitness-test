@@ -3,11 +3,17 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/utils/requireUser";
 import { analyzeWithGemini } from "@/lib/ai/gemini";
 import { buildAnalysisFromRaw } from "@/lib/ai/matchFood";
+import { getFoodsIndex } from "@/lib/ai/foodsIndex";
 import {
   GEMINI_DOWN_MESSAGE,
   isUpstreamGeminiFailure,
   OFF_TOPIC_MESSAGE,
 } from "@/lib/ai/guard";
+
+// Must stay above the Gemini chain deadline so a slow upstream returns a real
+// error instead of being killed mid-flight. Ignored on Vercel Hobby, which
+// caps every function at 10s — see the deadline defaults in lib/ai/gemini.ts.
+export const maxDuration = 30;
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_TEXT = 300;
@@ -86,6 +92,24 @@ export async function POST(req: Request) {
     );
   }
 
+  // Warm the foods index while the model is thinking. buildAnalysisFromRaw
+  // needs it, but only AFTER the model answers — loading it there put a cold
+  // instance's ~1s table read in series behind the call instead of under it.
+  // Failures are swallowed: the real getFoodsIndex() below will retry and
+  // surface the error properly.
+  void getFoodsIndex().catch(() => null);
+
+  // Credits are reserved above and refunded here when Gemini never answered,
+  // so an outage on Google's side doesn't eat the user's daily allowance.
+  const refund = async () => {
+    // Never let a refund failure mask the real error being returned.
+    try {
+      await supa.rpc("refund_ai_usage", { p_user_id: uid, p_date: today });
+    } catch {
+      /* best effort */
+    }
+  };
+
   // ── Gemini call ───────────────────────────────────────────────────
   // Tries the primary model, falls back across the configured chain if it's
   // overloaded / unavailable / returns unusable data.
@@ -97,6 +121,7 @@ export async function POST(req: Request) {
       text,
     }));
   } catch (e) {
+    await refund();
     // Distinguish "Google's service is unavailable" from "we broke something".
     // `userMessage` is a deliberate, user-facing string the client shows
     // verbatim instead of its own generic server-error text.
@@ -121,7 +146,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ offTopic: true, message: OFF_TOPIC_MESSAGE });
   }
 
-  const result = await buildAnalysisFromRaw(raw);
+  // Off-topic is NOT refunded: the model answered and the call was paid for.
+  let result;
+  try {
+    result = await buildAnalysisFromRaw(raw);
+  } catch (e) {
+    // The model answered but we failed to use it — our bug, not their credit.
+    await refund();
+    return NextResponse.json(
+      { error: `AI analiza nije uspjela: ${(e as Error).message}` },
+      { status: 500 },
+    );
+  }
   result.model = usedModel;
   return NextResponse.json({ result });
 }

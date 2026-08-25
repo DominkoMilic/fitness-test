@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/utils/requireAdmin";
+import { invalidateFoodsIndex } from "@/lib/ai/foodsIndex";
 import type {
   ApplyResult,
   FoodDelete,
@@ -213,6 +214,10 @@ export async function POST(req: Request) {
       }
     }
   }
+
+  // AI matching serves `foods` from an in-memory index; this sync just
+  // rewrote that table, so drop it rather than serve stale nutrition.
+  invalidateFoodsIndex();
 
   return NextResponse.json({ result });
 }

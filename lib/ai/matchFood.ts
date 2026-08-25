@@ -1,6 +1,8 @@
 import "server-only";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { normalizeForSearch, tokenize } from "@/lib/utils/normalize";
+import { normalizeForSearch } from "@/lib/utils/normalize";
+import { contentStems } from "./foodText";
+import { getFoodsIndex } from "./foodsIndex";
+import type { FoodMatchRow, FoodsIndex, IndexedFood } from "./foodsIndex";
 import type { AiAnalysisItem, AiAnalysisResult, DailyTotals } from "@/types/app";
 import type { GeminiRaw, GeminiRawItem } from "./gemini";
 
@@ -10,19 +12,6 @@ import type { GeminiRaw, GeminiRawItem } from "./gemini";
 // aligned with the rest of the app, which always computes from `foods`.
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
-
-type FoodMatchRow = {
-  id: number;
-  name: string;
-  normalized_name: string;
-  kcal_per_100g: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-};
-
-const FOOD_COLUMNS =
-  "id, name, normalized_name, kcal_per_100g, protein, carbs, fat";
 
 function scaleFromPer100g(
   grams: number,
@@ -35,37 +24,6 @@ function scaleFromPer100g(
     u: round1(per100.u * r),
     m: round1(per100.m * r),
   };
-}
-
-// Croatian//English filler words. They carry no identity ("umak OD rajčice"
-// vs "umak OD sezama") and must never contribute to a match score.
-const STOPWORDS = new Set([
-  "od", "sa", "s", "u", "i", "za", "bez", "na", "iz", "po", "te", "ili",
-  "with", "and", "the", "of",
-]);
-
-// Very light Croatian stemmer: strips a case ending so declined forms unify
-// ("rajčice"/"rajčica" → "rajcic", "tjesteninom" → "tjestenin"). Deliberately
-// conservative — aggressive suffix stripping merges unrelated words.
-function stem(token: string): string {
-  let s = token;
-  if (s.length > 4 && /(om|em|im)$/.test(s)) s = s.slice(0, -2);
-  if (s.length > 3 && /[aeiou]$/.test(s)) s = s.slice(0, -1);
-  return s;
-}
-
-// Identity-bearing, stemmed tokens of a normalized name. Punctuation is
-// stripped here (normalizeForSearch keeps it, and it's mirrored in the DB, so
-// we must not change that shared function).
-function contentStems(normalized: string): string[] {
-  const cleaned = normalized.replace(/[^\p{L}\p{N}\s]+/gu, " ");
-  const out: string[] = [];
-  for (const t of tokenize(cleaned)) {
-    if (t.length < 2 || STOPWORDS.has(t)) continue;
-    const s = stem(t);
-    if (s && !out.includes(s)) out.push(s);
-  }
-  return out;
 }
 
 // Sørensen–Dice similarity over content stems: 2·|A∩B| / (|A|+|B|).
@@ -116,71 +74,45 @@ function accepts(query: string[], cand: string[]): number {
 // match. Ties broken by the shorter (more specific) name.
 function bestMatch(
   queryStems: string[],
-  candidates: FoodMatchRow[],
+  candidates: IndexedFood[],
 ): FoodMatchRow | null {
   let best: FoodMatchRow | null = null;
   let bestScore = 0;
   for (const c of candidates) {
-    const score = accepts(queryStems, contentStems(c.normalized_name));
+    const score = accepts(queryStems, c.stems);
     if (score <= 0) continue;
     if (
       score > bestScore ||
       (score === bestScore &&
         best &&
-        c.normalized_name.length < best.normalized_name.length)
+        c.row.normalized_name.length < best.normalized_name.length)
     ) {
-      best = c;
+      best = c.row;
       bestScore = score;
     }
   }
   return best;
 }
 
-async function matchOne(
-  raw: GeminiRawItem,
-): Promise<AiAnalysisItem> {
-  const supa = getSupabaseAdmin();
+function matchOne(raw: GeminiRawItem, index: FoodsIndex): AiAnalysisItem {
   const grams = Math.max(0, round1(raw.estimatedGrams));
   const norm = normalizeForSearch(raw.name);
 
   let match: FoodMatchRow | null = null;
 
   if (norm) {
-    // 1) exact normalized-name match (fast, indexed)
-    const { data: exact } = await supa
-      .from("foods")
-      .select(FOOD_COLUMNS)
-      .eq("status", "imported")
-      .eq("normalized_name", norm)
-      .limit(1);
-    match = (exact?.[0] as FoodMatchRow | undefined) ?? null;
+    // 1) exact normalized-name match
+    match = index.byNormalized.get(norm) ?? null;
 
-    // 2) fuzzy: gather candidates for EVERY identity-bearing word, not just
-    //    the first one. Searching only the first token meant "umak od
-    //    rajčice" only ever looked at `%umak%` products and never saw the
-    //    tomato ones. Results are pooled, then scored; a candidate is used
-    //    only if it clears MIN_SIMILARITY.
+    // 2) fuzzy. Candidates used to be gathered with one `ilike('%stem%')` per
+    //    stem, capped at 25 rows each; now every row is scored, so a good
+    //    match can no longer fall outside the cap. The query stem set and the
+    //    length gate are unchanged, so scoring behaves as before.
     if (!match) {
       const stems = contentStems(norm).slice(0, 3);
       const searchable = stems.filter((s) => s.length >= 3);
       if (searchable.length > 0) {
-        const results = await Promise.all(
-          searchable.map((s) =>
-            supa
-              .from("foods")
-              .select(FOOD_COLUMNS)
-              .eq("status", "imported")
-              .ilike("normalized_name", `%${s}%`)
-              .limit(25),
-          ),
-        );
-        const pool = new Map<number, FoodMatchRow>();
-        for (const r of results) {
-          for (const row of (r.data as FoodMatchRow[] | null) ?? []) {
-            pool.set(row.id, row);
-          }
-        }
-        match = bestMatch(stems, Array.from(pool.values()));
+        match = bestMatch(stems, index.entries);
       }
     }
   }
@@ -238,7 +170,8 @@ function sumItems(items: AiAnalysisItem[]): DailyTotals {
 export async function buildAnalysisFromRaw(
   raw: GeminiRaw,
 ): Promise<AiAnalysisResult> {
-  const items = await Promise.all(raw.items.map(matchOne));
+  const index = await getFoodsIndex();
+  const items = raw.items.map((item) => matchOne(item, index));
   const totals = sumItems(items);
   return {
     title: raw.title,

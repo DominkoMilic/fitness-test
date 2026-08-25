@@ -43,10 +43,12 @@ export type AnalyzeResponse =
 
 export async function analyzeMeal(
   input: AnalyzeInput,
+  signal?: AbortSignal,
 ): Promise<AnalyzeResponse> {
   return jsonFetch<AnalyzeResponse>("/api/me/ai/analyze", {
     method: "POST",
     body: JSON.stringify(input),
+    signal,
   });
 }
 

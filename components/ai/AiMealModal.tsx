@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
@@ -187,6 +187,10 @@ export function AiMealModal() {
 
   const cameraRef = useRef<HTMLInputElement | null>(null);
   const uploadRef = useRef<HTMLInputElement | null>(null);
+  // Refs, not state: neither should trigger a re-render, and runAnalyze must
+  // read the current value rather than one closed over at render time.
+  const abortRef = useRef<AbortController | null>(null);
+  const analyzingRef = useRef(false);
 
   // Reset all state on the closed→open transition. Render-phase adjustment
   // (guarded by `wasOpen`) mirrors the other modals and avoids setState-in-
@@ -214,6 +218,17 @@ export function AiMealModal() {
     setWasOpen(false);
   }
 
+  // Closing mid-analysis used to leave the request running: the server
+  // finished the work and the daily quota was already spent on a result
+  // nobody would see. In an effect rather than the reset branch above —
+  // refs must not be touched during render.
+  useEffect(() => {
+    if (open) return;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    analyzingRef.current = false;
+  }, [open]);
+
   // NOTE: intentionally NOT returning null when closed — keeping <Modal>
   // mounted lets its AnimatePresence play the slide-down/fade exit. Modal
   // itself renders nothing while open=false.
@@ -234,14 +249,26 @@ export function AiMealModal() {
       showToast("Priložite fotografiju ili opis");
       return;
     }
+    // The button is only shielded incidentally (step === "loading" unmounts
+    // the input block), so guard explicitly against a double submit — each
+    // one costs a Gemini call and a daily-quota increment.
+    if (analyzingRef.current) return;
+    analyzingRef.current = true;
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setStep("loading");
     setMessage("");
     try {
-      const res: AnalyzeResponse = await analyzeMeal({
-        imageBase64: prepared?.base64,
-        mime: prepared?.mime,
-        text: text.trim() || undefined,
-      });
+      const res: AnalyzeResponse = await analyzeMeal(
+        {
+          imageBase64: prepared?.base64,
+          mime: prepared?.mime,
+          text: text.trim() || undefined,
+        },
+        controller.signal,
+      );
       if ("offTopic" in res && res.offTopic) {
         setMessage(res.message);
         setStep("offtopic");
@@ -252,8 +279,14 @@ export function AiMealModal() {
       setTitle(r.title);
       setStep("result");
     } catch (e) {
+      // We aborted because the modal closed; its state is already reset and
+      // an error screen would flash on the next open.
+      if (controller.signal.aborted) return;
       setMessage(friendlyError(e));
       setStep("error");
+    } finally {
+      analyzingRef.current = false;
+      if (abortRef.current === controller) abortRef.current = null;
     }
   };
 
