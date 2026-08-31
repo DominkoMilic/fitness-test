@@ -65,7 +65,6 @@ export type AiAnalysisResult = {
   // didn't provide one.
   kcalMin: number | null;
   kcalMax: number | null;
-  notes?: string;
   // Which Gemini model actually produced this result (after any fallback).
   model?: string;
 };

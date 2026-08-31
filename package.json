@@ -7,7 +7,9 @@
     "build": "node scripts/stamp-sw.mjs && next build",
     "start": "next start",
     "lint": "eslint",
-    "db:backfill-normalized": "tsx scripts/backfill-normalized-names.ts"
+    "db:backfill-normalized": "tsx scripts/backfill-normalized-names.ts",
+    "test": "tsx --tsconfig tests/tsconfig.json --test tests/*.test.ts",
+    "ai:compare": "TSX_TSCONFIG_PATH=tests/tsconfig.json node --env-file=.env.local --import tsx scripts/ai-model-compare.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",

@@ -180,6 +180,5 @@ export async function buildAnalysisFromRaw(
     totals,
     kcalMin: raw.kcalMin,
     kcalMax: raw.kcalMax,
-    notes: raw.notes,
   };
 }

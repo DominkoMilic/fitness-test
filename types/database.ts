@@ -92,6 +92,14 @@ export type Database = {
         };
         Returns: number;
       };
+      // Project-wide daily ceiling — see
+      // db/migrations/2026-08-31_ai-global-daily-cap.sql
+      bump_global_ai_usage: {
+        Args: {
+          p_date: string;
+        };
+        Returns: number;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

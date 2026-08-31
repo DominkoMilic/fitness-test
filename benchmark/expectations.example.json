@@ -1,0 +1,33 @@
+{
+  "_readme": [
+    "Ground truth for the benchmark. Copy to expectations.json and fill in.",
+    "One entry per image FILENAME in benchmark/images/.",
+    "'expected' = foods you can actually see. Lowercase Croatian, generic names",
+    "  ('tjestenina', not 'tjestenina s umakom'), because that is what the",
+    "  model is instructed to emit and what matchFood.ts compares against.",
+    "'isFood': false marks a control image the model must REJECT.",
+    "Grading is substring-based in both directions, so 'krumpir' matches",
+    "  'pečeni krumpir'. Anything returned that matches no expected item is",
+    "  counted as a hallucination — keep 'expected' complete."
+  ],
+  "01-cevapi.jpg": {
+    "isFood": true,
+    "expected": ["cevapi", "somun", "luk", "ajvar"],
+    "note": "Balkan grill, multiple components"
+  },
+  "02-grah.jpg": {
+    "isFood": true,
+    "expected": ["grah", "kobasica"],
+    "note": "stew — portion estimation is hard"
+  },
+  "03-jabuka.jpg": {
+    "isFood": true,
+    "expected": ["jabuka"],
+    "note": "single simple food"
+  },
+  "14-laptop.jpg": {
+    "isFood": false,
+    "expected": [],
+    "note": "NON-FOOD control — must return isFood:false / no items"
+  }
+}

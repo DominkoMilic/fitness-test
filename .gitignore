@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local benchmark photos + ground truth (never commit food photos)
+benchmark/images/
+benchmark/expectations.json
+benchmark/run-*.json
