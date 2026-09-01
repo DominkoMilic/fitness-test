@@ -8,10 +8,38 @@ import type { FoodRow } from "@/types/database";
 // Bumped on schema change (added normalizedName) so stale caches are
 // discarded rather than reused without the searchable field.
 const CACHE_KEY = "kf_foods_cache_v2";
-const CACHE_TS_KEY = "kf_foods_cache_v2_ts";
-const LEGACY_CACHE_KEYS = ["kf_foods_cache", "kf_foods_cache_ts"];
-const TTL = 2 * 60 * 60 * 1000; // 2h
+// Version stamp the cached list was built from — see fetchFoodsStamp.
+const STAMP_KEY = "kf_foods_cache_v2_stamp";
+// When we last asked the server for a stamp, to bound probe frequency.
+const PROBE_TS_KEY = "kf_foods_cache_v2_probe";
+// Keys from earlier cache designs, including the pre-stamp `_ts` freshness
+// timestamp. Removed on every read so old installs don't carry them forever.
+const LEGACY_CACHE_KEYS = [
+  "kf_foods_cache",
+  "kf_foods_cache_ts",
+  "kf_foods_cache_v2_ts",
+];
+
+// Every localStorage key this module owns. Exported so the settings screen's
+// hard-refresh clears the whole set instead of a hand-listed subset that
+// drifts as keys are added — a "cleared" cache that kept its stamp would be
+// judged up to date against a list that no longer exists.
+export const FOODS_CACHE_KEYS = [
+  CACHE_KEY,
+  STAMP_KEY,
+  PROBE_TS_KEY,
+  ...LEGACY_CACHE_KEYS,
+];
+
 export const FOODS_CHANGED_EVENT = "kf-foods-changed";
+
+// Minimum gap between stamp probes. The probe is ~100 bytes, so this is not
+// about bandwidth — it's that useFoods mounts on several screens and we don't
+// want a request per route change.
+const PROBE_INTERVAL_MS = 60 * 1000;
+
+// Supabase PostgREST caps single-request reads at 1000 rows.
+const FOODS_PAGE = 1000;
 
 function rowToEntry(row: FoodRow): FoodEntry {
   const e: FoodEntry = {
@@ -33,47 +61,87 @@ function rowToEntry(row: FoodRow): FoodEntry {
   return e;
 }
 
-function readCache(): { entries: FoodEntry[]; fresh: boolean } | null {
+type CachedFoods = { entries: FoodEntry[]; stamp: string | null };
+
+function readCache(): CachedFoods | null {
   if (typeof window === "undefined") return null;
   try {
     LEGACY_CACHE_KEYS.forEach((k) => localStorage.removeItem(k));
     const raw = localStorage.getItem(CACHE_KEY);
-    const ts = parseInt(localStorage.getItem(CACHE_TS_KEY) || "0");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as FoodEntry[];
     if (!Array.isArray(parsed) || !parsed.length) return null;
-    return { entries: parsed, fresh: Date.now() - ts < TTL };
+    return { entries: parsed, stamp: localStorage.getItem(STAMP_KEY) };
   } catch {
     return null;
   }
 }
 
-function writeCache(entries: FoodEntry[]) {
+function writeCache(entries: FoodEntry[], stamp: string | null) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(entries));
-    localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+    // A list stored without a stamp must re-fetch rather than be trusted, so
+    // drop any previous stamp instead of leaving it to describe stale rows.
+    if (stamp) localStorage.setItem(STAMP_KEY, stamp);
+    else localStorage.removeItem(STAMP_KEY);
   } catch {}
 }
 
 export function clearFoodsCache() {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(CACHE_KEY);
-  localStorage.removeItem(CACHE_TS_KEY);
+  FOODS_CACHE_KEYS.forEach((k) => {
+    try {
+      localStorage.removeItem(k);
+    } catch {}
+  });
   window.dispatchEvent(new Event(FOODS_CHANGED_EVENT));
 }
 
-// 2h-cached read of imported foods. Falls back to DEFAULT_FOODS only when
-// neither cache nor DB returns rows (cold start / first run).
-//
+function lastProbeAt(): number {
+  try {
+    return Number(localStorage.getItem(PROBE_TS_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function markProbed() {
+  try {
+    localStorage.setItem(PROBE_TS_KEY, String(Date.now()));
+  } catch {}
+}
+
+/**
+ * Cheap "has the food table changed?" probe: newest updated_at plus the exact
+ * row count, in ONE request of roughly 100 bytes — the count rides back in the
+ * Content-Range header rather than the body.
+ *
+ * Both halves are load-bearing:
+ *   • max(updated_at) catches inserts AND edits — but only because
+ *     2026-09-01_foods-updated-at.sql bumps updated_at on UPDATE. Without that
+ *     trigger this sees inserts only and edits go unnoticed.
+ *   • the row count catches deletes, which move no timestamp at all.
+ * A sync that deletes one row and inserts another leaves the count equal, but
+ * the insert moves the timestamp, so the pair still changes.
+ *
+ * Filtered to status='imported' so it describes exactly the set loadFoods()
+ * fetches — a stamp taken over a different row set would not mean anything.
+ */
+async function fetchFoodsStamp(): Promise<string | null> {
+  const { data, count, error } = await supabase
+    .from("foods")
+    .select("updated_at", { count: "exact" })
+    .eq("status", "imported")
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  if (error || count == null) return null;
+  return `${data?.[0]?.updated_at ?? ""}|${count}`;
+}
+
 // PAGINATED — Supabase caps single-request reads at 1000 rows. Without
 // pagination, foods past row 1000 were invisible to the client.
-const FOODS_PAGE = 1000;
-
-export async function loadFoods(): Promise<FoodEntry[]> {
-  const cache = readCache();
-  if (cache?.fresh) return cache.entries;
-
+async function fetchAllFoods(): Promise<FoodEntry[]> {
   const all: FoodEntry[] = [];
   let from = 0;
   while (true) {
@@ -89,10 +157,78 @@ export async function loadFoods(): Promise<FoodEntry[]> {
     if (data.length < FOODS_PAGE) break;
     from += FOODS_PAGE;
   }
-
-  if (!all.length) return cache?.entries ?? DEFAULT_FOODS;
-  writeCache(all);
   return all;
+}
+
+let revalidating: Promise<void> | null = null;
+
+async function runRevalidate(cachedStamp: string | null): Promise<void> {
+  const stamp = await fetchFoodsStamp();
+  markProbed();
+  // Probe failed (offline, transient error). Keep serving what we have and
+  // try again on the next call — never drop a usable cache over a failed check.
+  if (!stamp) return;
+  // Unchanged. This is the overwhelmingly common path, and it cost ~100 bytes.
+  if (cachedStamp && stamp === cachedStamp) return;
+
+  const entries = await fetchAllFoods();
+  if (!entries.length) return;
+  writeCache(entries, stamp);
+  window.dispatchEvent(new Event(FOODS_CHANGED_EVENT));
+}
+
+/**
+ * Check in the background whether the cached list is still current, replacing
+ * it and firing FOODS_CHANGED_EVENT only if it is not. Cheap enough to call
+ * freely — it self-throttles to PROBE_INTERVAL_MS and de-dupes concurrent
+ * runs. Pass `force` to skip the throttle (e.g. an explicit user refresh).
+ */
+export function revalidateFoods(opts: { force?: boolean } = {}): void {
+  if (typeof window === "undefined") return;
+  const cache = readCache();
+  // Nothing cached: loadFoods() is already doing (or about to do) a full fetch.
+  if (!cache) return;
+  if (!opts.force && Date.now() - lastProbeAt() < PROBE_INTERVAL_MS) return;
+  if (revalidating) return;
+  revalidating = runRevalidate(cache.stamp)
+    .catch(() => {
+      /* offline / transient — next call retries */
+    })
+    .finally(() => {
+      revalidating = null;
+    });
+}
+
+/**
+ * The cached food list, returned INSTANTLY whenever one exists.
+ *
+ * There is no TTL any more. The old 2h expiry re-downloaded all ~2,900 rows on
+ * a timer whether or not anything had changed, and STILL left users up to two
+ * hours behind an admin sheet-sync — it paid the bandwidth without buying the
+ * freshness. Now the cache is kept until the server says it is stale: a
+ * ~100-byte stamp probe runs in the background, and only a changed stamp
+ * triggers the full fetch, after which FOODS_CHANGED_EVENT re-renders useFoods.
+ *
+ * Falls back to DEFAULT_FOODS only when there is no cache and the DB returns
+ * nothing (cold start while offline / first run).
+ */
+export async function loadFoods(): Promise<FoodEntry[]> {
+  const cache = readCache();
+  if (cache) {
+    revalidateFoods();
+    return cache.entries;
+  }
+
+  // Cold start. Read the stamp BEFORE the rows, deliberately: if a sync lands
+  // between the two calls we store a stamp OLDER than the rows we got, so the
+  // next probe sees a difference and re-fetches. The opposite order would
+  // store a stamp newer than the data and the cache would never self-correct.
+  const stamp = await fetchFoodsStamp();
+  const entries = await fetchAllFoods();
+  if (!entries.length) return DEFAULT_FOODS;
+  writeCache(entries, stamp);
+  markProbed();
+  return entries;
 }
 
 // Lookup a single food by scanned barcode. Cache-first (instant if cached
@@ -104,9 +240,9 @@ export async function findFoodByBarcode(
   const code = normalizeBarcode(rawCode);
   if (!code) return null;
 
-  // 1) In-memory cache check — avoids round-trip when useFoods already
-  //    populated localStorage. Stale cache is acceptable here: a barcode
-  //    moving foods is extremely rare; worst case we fall through to DB.
+  // 1) Cache check — avoids a round-trip when loadFoods already populated
+  //    localStorage. A stale cache is acceptable here: a barcode moving
+  //    between foods is extremely rare, and we fall through to the DB anyway.
   const cache = readCache();
   if (cache) {
     const hit = cache.entries.find((f) => f.barcode === code);

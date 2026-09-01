@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ConfirmPopup } from "@/components/ui/ConfirmPopup";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUIStore } from "@/store/useUIStore";
+import { FOODS_CACHE_KEYS } from "@/lib/api/foods";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -68,9 +69,10 @@ export default function SettingsPage() {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
+      // Every key lib/api/foods.ts owns, including the version stamp — a
+      // "cleared" cache that kept its stamp would be judged up to date.
       try {
-        window.localStorage.removeItem("kf_foods_cache_v2");
-        window.localStorage.removeItem("kf_foods_cache_v2_ts");
+        FOODS_CACHE_KEYS.forEach((k) => window.localStorage.removeItem(k));
       } catch {
         /* ignore */
       }

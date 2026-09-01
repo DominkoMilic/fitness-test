@@ -169,13 +169,25 @@ export type FoodRow = {
   has_cup: boolean;
   has_spoons: boolean;
   created_at: string;
+  // Maintained by trg_foods_touch_updated_at (2026-09-01_foods-updated-at.sql),
+  // never by application code. Half of the cache version stamp in
+  // lib/api/foods.ts — see fetchFoodsStamp.
+  updated_at: string;
 };
 export type FoodInsert = Omit<
   FoodRow,
-  "id" | "created_at" | "has_cup" | "has_spoons" | "normalized_name"
+  | "id"
+  | "created_at"
+  | "updated_at"
+  | "has_cup"
+  | "has_spoons"
+  | "normalized_name"
 > & {
   id?: number;
   created_at?: string;
+  // DB-managed. Left optional rather than required so no write path is
+  // tempted to set it by hand and desync the stamp from reality.
+  updated_at?: string;
   has_cup?: boolean;
   has_spoons?: boolean;
   // Optional in TS — DB trigger fills it if omitted. Service layer still
